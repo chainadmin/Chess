@@ -15,9 +15,9 @@ Scan the QR code with Expo Go. The app intentionally avoids native-only AdMob an
 
 - Welcome: logo/name, login, register, continue as guest.
 - Login/Register: local mock account flows.
-- Home: Play Local, Multiplayer, Rules, Settings.
+- Home: pass-and-play local game, local computer games at Easy/Medium/Hard, Multiplayer, Rules, Settings.
 - Multiplayer: mock quick match for Blitz 3+0, Bullet 1+1, and Rapid 10+0.
-- Game: 10×8 board, local or mock-online mode, turn indicator, clocks, captured pieces, move history, resign, and local reset.
+- Game: 10×8 board, pass-and-play, Easy/Medium/Hard local computer opponents, mock-online mode, turn indicator, clocks, captured pieces, move history, resign, and local reset.
 - Settings: remove ads mock purchase, restore purchases, sound toggle, account status, logout.
 - Rules: 10×8 setup and Shifter movement explanation.
 
@@ -26,7 +26,8 @@ Scan the QR code with Expo Go. The app intentionally avoids native-only AdMob an
 - Board: 10 columns × 8 rows.
 - Back rank: `R N S B Q K B S N R`.
 - Pawn rank: 10 pawns per side.
-- The Shifter (`S`) can move like a bishop diagonally any distance without jumping.
+- The Shifter is shown with a glowing diamond-spark sigil instead of a plain `S` marker.
+- The Shifter can move like a bishop diagonally any distance without jumping.
 - The Shifter can also move exactly one square orthogonally up/down/left/right.
 - Captures are allowed on both Shifter movement types.
 - Check/checkmate, captures, turns, pawn promotion, resignation, and timeout states are implemented.
@@ -80,3 +81,13 @@ Production architecture notes:
 - Blitz 3+0: 3 minutes per player, no increment.
 - Bullet 1+1: 1 minute per player, +1 second after each move.
 - Rapid 10+0: 10 minutes per player, no increment.
+
+## Local Computer Opponents
+
+Local play now includes three deterministic computer levels so the same board position is testable and replayable:
+
+- Easy picks a legal move from the current position.
+- Medium scores legal moves for captures, checking pressure, center control, Shifter shifts, mobility, and material.
+- Hard uses the same evaluation but looks one reply ahead to avoid obvious tactical losses.
+
+The computer move selection lives in `/src/game/computerPlayer.ts` and remains separate from the React Native screen.

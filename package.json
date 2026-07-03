@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check": "node scripts/check.js && node scripts/check-computer-player.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.1.1",
