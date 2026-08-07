@@ -1,1 +1,1 @@
-export const STORAGE_KEYS = { users: 'shiftchess.users', currentUser: 'shiftchess.currentUser', adsRemoved: 'shiftchess.adsRemoved', completedGameCount: 'shiftchess.completedGameCount', soundEnabled: 'shiftchess.soundEnabled' } as const;
+export const STORAGE_KEYS = { users: 'shiftchess.users', currentUser: 'shiftchess.currentUser', adsRemoved: 'shiftchess.adsRemoved', completedGameCount: 'shiftchess.completedGameCount', soundEnabled: 'shiftchess.soundEnabled', dailyPuzzles: 'shiftchess.dailyPuzzles' } as const;
