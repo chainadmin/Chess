@@ -17,7 +17,7 @@ Scan the QR code with Expo Go. The app intentionally avoids native-only AdMob an
 - Login/Register: local mock account flows.
 - Home: Daily Puzzle, Play Local, Multiplayer, Rules, Settings.
 - Daily Puzzle: procedurally generates and stores today's and tomorrow's puzzles, rotates them by local date, and remembers completion.
-- Multiplayer: mock quick match for Blitz 3+0, Bullet 1+1, and Rapid 10+0.
+- Multiplayer: mobile-first rated matchmaking for Blitz 3+0, Bullet 1+1, and Rapid 10+0, including a cancellable queue and an expanding rating range.
 - Rating: persistent Elo-style multiplayer ratings from 0–3500, with a 1200 starting rating and rating-based matchmaking.
 - Game: 10×8 board, local or mock-online mode, turn indicator, clocks, captured pieces, move history, resign, and local reset.
 - Settings: remove ads mock purchase, restore purchases, sound toggle, account status, logout.
@@ -67,7 +67,7 @@ The interface is ready to be replaced by backend/JWT auth later.
 
 ### Multiplayer
 
-`/src/services/multiplayer/MultiplayerService.ts` is WebSocket-ready but currently mock-only in Expo Go. Quick Match waits 2 seconds, then returns a mock match with match id, player color, opponent name, time control, and `mode="mock-online"`.
+`/src/services/multiplayer/MultiplayerService.ts` is WebSocket-ready but currently mock-only in Expo Go. Matchmaking pairs the player with a nearby-rated mock opponent, randomizes color, and returns a match id, opponent profile, time control, and `mode="mock-online"`. Queue cancellation is handled explicitly so a cancelled search cannot launch a game later.
 
 Production architecture notes:
 
