@@ -18,6 +18,7 @@ Scan the QR code with Expo Go. The app intentionally avoids native-only AdMob an
 - Home: Daily Puzzle, Play Local, Multiplayer, Rules, Settings.
 - Daily Puzzle: procedurally generates and stores today's and tomorrow's puzzles, rotates them by local date, and remembers completion.
 - Multiplayer: mock quick match for Blitz 3+0, Bullet 1+1, and Rapid 10+0.
+- Rating: persistent Elo-style multiplayer ratings from 0–3500, with a 1200 starting rating and rating-based matchmaking.
 - Game: 10×8 board, local or mock-online mode, turn indicator, clocks, captured pieces, move history, resign, and local reset.
 - Settings: remove ads mock purchase, restore purchases, sound toggle, account status, logout.
 - Rules: 10×8 setup and Shifter movement explanation.
@@ -75,6 +76,12 @@ Production architecture notes:
 - Backend validates all moves and rejects illegal moves.
 - Backend broadcasts accepted moves to both clients.
 - Backend owns multiplayer clocks in production to prevent client timer tampering.
+
+### Ratings
+
+Rated multiplayer games use the standard Elo expected-score formula. New players start
+at 1200, ratings are clamped to 0–3500, and a larger provisional K-factor is used for
+the first 30 games. Local games and daily puzzles do not affect ratings.
 
 ## Time Controls
 
