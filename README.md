@@ -15,7 +15,8 @@ Scan the QR code with Expo Go. The app intentionally avoids native-only AdMob an
 
 - Welcome: logo/name, login, register, continue as guest.
 - Login/Register: local mock account flows.
-- Home: Play Local, Multiplayer, Rules, Settings.
+- Home: Daily Puzzle, Play Local, Multiplayer, Rules, Settings.
+- Daily Puzzle: procedurally generates and stores today's and tomorrow's puzzles, rotates them by local date, and remembers completion.
 - Multiplayer: mock quick match for Blitz 3+0, Bullet 1+1, and Rapid 10+0.
 - Game: 10×8 board, local or mock-online mode, turn indicator, clocks, captured pieces, move history, resign, and local reset.
 - Settings: remove ads mock purchase, restore purchases, sound toggle, account status, logout.
