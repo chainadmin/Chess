@@ -1,11 +1,18 @@
-import { Board, cloneBoard, ROWS } from './board';
-import { Move } from './pieces';
+import { Board } from './board';
+import { Move, Piece, PieceType, Square } from './pieces';
 import { legalMoves } from './legalMoves';
-export function applyMove(board: Board, move: Move): Board | null {
+import { applyRawMove } from './applyRaw';
+export type ApplyContext = { enPassantTarget?: Square | null; promotion?: PieceType };
+export type ApplyResult = { board: Board; captured?: Piece; enPassantTarget: Square | null; isCastle: boolean; isEnPassant: boolean };
+export function applyMove(board: Board, move: Move, context: ApplyContext = {}): ApplyResult | null {
   const piece = board[move.from.row][move.from.col]; if (!piece) return null;
-  const legal = legalMoves(board, move.from.row, move.from.col).find(m => m.row === move.to.row && m.col === move.to.col); if (!legal) return null;
-  const next = cloneBoard(board); const moving = next[move.from.row][move.from.col]!;
-  next[move.to.row][move.to.col] = moving; next[move.from.row][move.from.col] = null;
-  if (moving.type === 'P' && (move.to.row === 0 || move.to.row === ROWS - 1)) next[move.to.row][move.to.col] = { ...moving, type: 'Q' };
-  return next;
+  const legal = legalMoves(board, move.from.row, move.from.col, { enPassantTarget: context.enPassantTarget }).find(m => m.row === move.to.row && m.col === move.to.col);
+  if (!legal) return null;
+  const isEnPassant = piece.type === 'P' && move.from.col !== move.to.col && !board[move.to.row][move.to.col];
+  const captured = isEnPassant ? board[move.from.row][move.to.col] ?? undefined : board[move.to.row][move.to.col] ?? undefined;
+  const board2 = applyRawMove(board, move, context.promotion ?? 'Q');
+  const isDoubleStep = piece.type === 'P' && Math.abs(move.to.row - move.from.row) === 2;
+  const enPassantTarget = isDoubleStep ? { row: (move.from.row + move.to.row) / 2, col: move.from.col } : null;
+  const isCastle = piece.type === 'K' && Math.abs(move.to.col - move.from.col) === 2;
+  return { board: board2, captured, enPassantTarget, isCastle, isEnPassant };
 }

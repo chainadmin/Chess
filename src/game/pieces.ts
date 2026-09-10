@@ -1,7 +1,10 @@
 export type Color = 'white' | 'black';
 export type PieceType = 'K' | 'Q' | 'R' | 'B' | 'N' | 'P' | 'S';
-export type Piece = { type: PieceType; color: Color };
+export type Piece = { type: PieceType; color: Color; moved?: boolean };
 export type Square = { row: number; col: number };
 export type Move = { from: Square; to: Square; captured?: Piece; shift?: boolean; promotion?: PieceType };
+export const PROMOTION_CHOICES: PieceType[] = ['Q', 'R', 'B', 'N', 'S'];
 export const SYMBOLS: Record<PieceType, string> = { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙', S: 'S' };
+export const PIECE_NAMES: Record<PieceType, string> = { K: 'King', Q: 'Queen', R: 'Rook', B: 'Bishop', N: 'Knight', P: 'Pawn', S: 'Shifter' };
+export const PIECE_VALUE: Record<PieceType, number> = { P: 1, N: 3, B: 3, S: 4, R: 5, Q: 9, K: 0 };
 export const opponent = (color: Color): Color => color === 'white' ? 'black' : 'white';

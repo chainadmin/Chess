@@ -1,14 +1,26 @@
+import { Board } from '../../game/board';
+import { allLegalMoves } from '../../game/legalMoves';
 import { Move, Color } from '../../game/pieces';
 import { TimeControl, TimeControlId, TIME_CONTROLS } from '../../game/timers';
 
 export type Match = { matchId: string; playerColor: Color; opponentName: string; opponentRating: number; timeControl: TimeControl; mode: 'mock-online' };
-export interface MultiplayerService { connect(): Promise<void>; joinQueue(timeControl: TimeControlId, playerRating: number): Promise<Match>; cancelQueue(): Promise<void>; sendMove(move: Move): Promise<void>; onOpponentMove(callback: (move: Move) => void): () => void; resign(): Promise<void>; disconnect(): Promise<void>; }
+export interface MultiplayerService {
+  connect(): Promise<void>;
+  joinQueue(timeControl: TimeControlId, playerRating: number): Promise<Match>;
+  cancelQueue(): Promise<void>;
+  /** Tells the mock opponent what just happened so it can reply; pass the resulting board and whose turn it now is. */
+  sendMove(move: Move, board: Board, turnColor: Color): Promise<void>;
+  onOpponentMove(callback: (move: Move) => void): () => void;
+  resign(): Promise<void>;
+  disconnect(): Promise<void>;
+}
 export class QueueCancelledError extends Error { constructor() { super('Matchmaking was cancelled'); this.name = 'QueueCancelledError'; } }
 
 const opponentNames = ['KnightRider', 'QuietBishop', 'PawnStorm', 'CastleCrew', 'TempoFox', 'OpenFile'];
 
 class MockMultiplayerService implements MultiplayerService {
-  private timer?: ReturnType<typeof setTimeout>;
+  private queueTimer?: ReturnType<typeof setTimeout>;
+  private replyTimer?: ReturnType<typeof setTimeout>;
   private rejectQueue?: (reason: QueueCancelledError) => void;
   private opponentMove?: (move: Move) => void;
 
@@ -18,9 +30,9 @@ class MockMultiplayerService implements MultiplayerService {
     void this.cancelQueue();
     return new Promise<Match>((resolve, reject) => {
       this.rejectQueue = reject;
-      this.timer = setTimeout(() => {
+      this.queueTimer = setTimeout(() => {
         const ratingOffset = Math.floor(Math.random() * 181) - 90;
-        this.timer = undefined;
+        this.queueTimer = undefined;
         this.rejectQueue = undefined;
         resolve({
           matchId: `mock-${Date.now()}`,
@@ -35,17 +47,34 @@ class MockMultiplayerService implements MultiplayerService {
   }
 
   async cancelQueue() {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = undefined;
+    if (this.queueTimer) clearTimeout(this.queueTimer);
+    this.queueTimer = undefined;
     const reject = this.rejectQueue;
     this.rejectQueue = undefined;
     reject?.(new QueueCancelledError());
   }
 
-  async sendMove(_move: Move) { /* Future WebSocket: send move request; backend validates and broadcasts accepted moves. */ }
+  async sendMove(_move: Move, board: Board, turnColor: Color) {
+    // Future WebSocket: send the move request; the backend validates it and broadcasts the accepted move to both clients.
+    // Locally we stand in for the opponent by picking a random legal reply for whichever color is now on the move.
+    if (this.replyTimer) clearTimeout(this.replyTimer);
+    const candidates = allLegalMoves(board, turnColor);
+    if (candidates.length === 0) return;
+    this.replyTimer = setTimeout(() => {
+      this.replyTimer = undefined;
+      const reply = candidates[Math.floor(Math.random() * candidates.length)];
+      this.opponentMove?.(reply);
+    }, 500 + Math.random() * 900);
+  }
+
   onOpponentMove(callback: (move: Move) => void) { this.opponentMove = callback; return () => { this.opponentMove = undefined; }; }
   async resign() { /* Future WebSocket: notify server. */ }
-  async disconnect() { await this.cancelQueue(); this.opponentMove = undefined; }
+  async disconnect() {
+    await this.cancelQueue();
+    if (this.replyTimer) clearTimeout(this.replyTimer);
+    this.replyTimer = undefined;
+    this.opponentMove = undefined;
+  }
 }
 
 export const multiplayerService: MultiplayerService = new MockMultiplayerService();

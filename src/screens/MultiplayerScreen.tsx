@@ -7,6 +7,7 @@ import { multiplayerService, QueueCancelledError } from '../services/multiplayer
 import { TimeControlId, TIME_CONTROLS } from '../game/timers';
 import { authService } from '../services/auth/AuthService';
 import { INITIAL_RATING, ratingService } from '../services/rating/RatingService';
+import { theme } from '../styles/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Multiplayer'>;
 
@@ -85,7 +86,7 @@ export function MultiplayerScreen({ navigation }: Props) {
           <Text style={styles.eyebrow}>ONLINE PLAY</Text>
           <Text style={styles.title}>Find a match</Text>
         </View>
-        <View style={styles.onlinePill}><View style={styles.onlineDot}/><Text style={styles.onlineText}>2,481 online</Text></View>
+        <View style={styles.onlinePill}><View style={styles.onlineDot}/><Text style={styles.onlineText}>Mock matchmaking</Text></View>
       </View>
 
       <View style={styles.profileCard}>
@@ -115,21 +116,21 @@ export function MultiplayerScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: { padding: 0 }, content: { padding: 20, paddingBottom: 34 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 8, marginBottom: 24 },
-  eyebrow: { color: '#83b59b', fontSize: 11, fontWeight: '900', letterSpacing: 1.8, marginBottom: 5 },
-  title: { color: '#f5f1e8', fontSize: 32, lineHeight: 38, fontWeight: '900' },
-  onlinePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1d2a24', borderRadius: 20, paddingHorizontal: 11, paddingVertical: 8 },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#7ed79e', marginRight: 6 }, onlineText: { color: '#b9c9bf', fontSize: 11, fontWeight: '700' },
-  profileCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 16, backgroundColor: '#1b211e', borderWidth: 1, borderColor: '#2b342f', marginBottom: 26 },
-  miniAvatar: { width: 48, height: 48, borderRadius: 15, backgroundColor: '#d9a85c', alignItems: 'center', justifyContent: 'center', marginRight: 13 }, miniAvatarText: { fontSize: 28, color: '#182019' },
-  profileCopy: { flex: 1 }, profileLabel: { color: '#839087', fontSize: 10, letterSpacing: 1.3, fontWeight: '800' }, rating: { color: '#f5f1e8', fontSize: 23, fontWeight: '900', marginTop: 2 },
-  ratedBadge: { backgroundColor: '#29352e', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }, ratedText: { color: '#8fc9a7', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  sectionTitle: { color: '#d9ded9', fontSize: 14, fontWeight: '800', marginBottom: 11 }, options: { gap: 10 },
-  option: { minHeight: 74, borderRadius: 18, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: '#191e1b', borderWidth: 1.5, borderColor: '#29312d' }, optionActive: { backgroundColor: '#222a25', borderColor: '#d8aa5c' },
-  optionIcon: { width: 38, fontSize: 23 }, optionCopy: { flex: 1 }, optionName: { color: '#f5f1e8', fontSize: 17, fontWeight: '900' }, optionDetail: { color: '#8e9992', fontSize: 12, marginTop: 3 },
-  radio: { width: 21, height: 21, borderRadius: 11, borderWidth: 2, borderColor: '#59635d', alignItems: 'center', justifyContent: 'center' }, radioActive: { borderColor: '#d8aa5c' }, radioCenter: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d8aa5c' },
-  fairPlay: { flexDirection: 'row', marginTop: 22, marginBottom: 20, paddingHorizontal: 4 }, shield: { color: '#81aa91', fontSize: 20, marginRight: 12 }, fairCopy: { flex: 1 }, fairTitle: { color: '#cbd4ce', fontSize: 13, fontWeight: '800' }, fairDetail: { color: '#78857e', fontSize: 11, lineHeight: 16, marginTop: 3 },
-  findButton: { height: 58, borderRadius: 18, backgroundColor: '#d8a64f', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }, pressed: { opacity: .82 }, findText: { color: '#162019', fontSize: 17, fontWeight: '900' }, findArrow: { color: '#162019', position: 'absolute', right: 20, fontSize: 22, fontWeight: '700' },
-  searchScreen: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 26 }, searchTop: { alignItems: 'center' }, searchTitle: { color: '#f5f1e8', fontSize: 27, fontWeight: '900', textAlign: 'center' }, searchCopy: { color: '#89958e', marginTop: 7, fontSize: 13 },
-  radar: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center' }, ringOuter: { width: 180, height: 180, borderRadius: 90, borderWidth: 1, borderColor: '#6bb48725', alignItems: 'center', justifyContent: 'center', backgroundColor: '#6bb48708' }, ringMiddle: { width: 126, height: 126, borderRadius: 63, borderWidth: 1, borderColor: '#6bb48740', alignItems: 'center', justifyContent: 'center', backgroundColor: '#6bb4870d' }, avatar: { width: 78, height: 78, borderRadius: 25, backgroundColor: '#d8a64f', alignItems: 'center', justifyContent: 'center' }, avatarPiece: { fontSize: 47, color: '#172019' }, pulse: { position: 'absolute', right: '24%', top: '30%', width: 27, height: 27, borderRadius: 14, backgroundColor: '#75cf98', alignItems: 'center', justifyContent: 'center' },
-  queueCard: { width: '100%', borderRadius: 20, backgroundColor: '#1a211d', borderColor: '#29342e', borderWidth: 1, paddingHorizontal: 17 }, queueRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, queueLabel: { color: '#849189', fontSize: 12 }, queueValue: { color: '#e7e9e5', fontSize: 13, fontWeight: '800' }, divider: { height: 1, backgroundColor: '#29312d' }, expandCopy: { color: '#707d75', fontSize: 11, marginTop: 13, marginBottom: 20 }, cancelButton: { width: '100%', height: 54, borderRadius: 17, borderWidth: 1, borderColor: '#3b4540', alignItems: 'center', justifyContent: 'center' }, cancelText: { color: '#d9ded9', fontWeight: '800' },
+  eyebrow: { color: theme.colors.cyan, fontSize: 11, fontWeight: '900', letterSpacing: 1.8, marginBottom: 5 },
+  title: { color: theme.colors.text, fontSize: 32, lineHeight: 38, fontWeight: '900' },
+  onlinePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surfaceAlt, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 8 },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: theme.colors.success, marginRight: 6 }, onlineText: { color: theme.colors.textDim, fontSize: 11, fontWeight: '700' },
+  profileCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 16, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderSoft, marginBottom: 26 },
+  miniAvatar: { width: 48, height: 48, borderRadius: 15, backgroundColor: theme.colors.accent, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, miniAvatarText: { fontSize: 28, color: '#241608' },
+  profileCopy: { flex: 1 }, profileLabel: { color: theme.colors.textFaint, fontSize: 10, letterSpacing: 1.3, fontWeight: '800' }, rating: { color: theme.colors.text, fontSize: 23, fontWeight: '900', marginTop: 2 },
+  ratedBadge: { backgroundColor: theme.colors.accentSoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }, ratedText: { color: theme.colors.gold, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  sectionTitle: { color: theme.colors.textDim, fontSize: 14, fontWeight: '800', marginBottom: 11 }, options: { gap: 10 },
+  option: { minHeight: 74, borderRadius: 18, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface, borderWidth: 1.5, borderColor: theme.colors.borderSoft }, optionActive: { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.accent },
+  optionIcon: { width: 38, fontSize: 23 }, optionCopy: { flex: 1 }, optionName: { color: theme.colors.text, fontSize: 17, fontWeight: '900' }, optionDetail: { color: theme.colors.textFaint, fontSize: 12, marginTop: 3 },
+  radio: { width: 21, height: 21, borderRadius: 11, borderWidth: 2, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }, radioActive: { borderColor: theme.colors.accent }, radioCenter: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.accent },
+  fairPlay: { flexDirection: 'row', marginTop: 22, marginBottom: 20, paddingHorizontal: 4 }, shield: { color: theme.colors.cyan, fontSize: 20, marginRight: 12 }, fairCopy: { flex: 1 }, fairTitle: { color: theme.colors.textDim, fontSize: 13, fontWeight: '800' }, fairDetail: { color: theme.colors.textFaint, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  findButton: { height: 58, borderRadius: 18, backgroundColor: theme.colors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }, pressed: { opacity: .82 }, findText: { color: '#241608', fontSize: 17, fontWeight: '900' }, findArrow: { color: '#241608', position: 'absolute', right: 20, fontSize: 22, fontWeight: '700' },
+  searchScreen: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 26 }, searchTop: { alignItems: 'center' }, searchTitle: { color: theme.colors.text, fontSize: 27, fontWeight: '900', textAlign: 'center' }, searchCopy: { color: theme.colors.textFaint, marginTop: 7, fontSize: 13 },
+  radar: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center' }, ringOuter: { width: 180, height: 180, borderRadius: 90, borderWidth: 1, borderColor: '#5be8ef25', alignItems: 'center', justifyContent: 'center', backgroundColor: '#5be8ef08' }, ringMiddle: { width: 126, height: 126, borderRadius: 63, borderWidth: 1, borderColor: '#5be8ef40', alignItems: 'center', justifyContent: 'center', backgroundColor: '#5be8ef0d' }, avatar: { width: 78, height: 78, borderRadius: 25, backgroundColor: theme.colors.accent, alignItems: 'center', justifyContent: 'center' }, avatarPiece: { fontSize: 47, color: '#241608' }, pulse: { position: 'absolute', right: '24%', top: '30%', width: 27, height: 27, borderRadius: 14, backgroundColor: theme.colors.success, alignItems: 'center', justifyContent: 'center' },
+  queueCard: { width: '100%', borderRadius: 20, backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSoft, borderWidth: 1, paddingHorizontal: 17 }, queueRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, queueLabel: { color: theme.colors.textFaint, fontSize: 12 }, queueValue: { color: theme.colors.text, fontSize: 13, fontWeight: '800' }, divider: { height: 1, backgroundColor: theme.colors.borderSoft }, expandCopy: { color: theme.colors.textFaint, fontSize: 11, marginTop: 13, marginBottom: 20 }, cancelButton: { width: '100%', height: 54, borderRadius: 17, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }, cancelText: { color: theme.colors.text, fontWeight: '800' },
 });
