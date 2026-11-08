@@ -1,6 +1,7 @@
-import { Board } from '../../game/board';
-import { allLegalMoves } from '../../game/legalMoves';
-import { Move, Color } from '../../game/pieces';
+import { chooseComputerMove } from '../../game/computerPlayer';
+import { GameState } from '../../game/gameState';
+import { OpponentTurnScheduler, ScheduleTimer, scheduleTimer } from '../../game/opponentFlow';
+import { Move, Color, opponent } from '../../game/pieces';
 import { TimeControl, TimeControlId, TIME_CONTROLS } from '../../game/timers';
 
 export type Match = { matchId: string; playerColor: Color; opponentName: string; opponentRating: number; timeControl: TimeControl; mode: 'mock-online' };
@@ -8,9 +9,11 @@ export interface MultiplayerService {
   connect(): Promise<void>;
   joinQueue(timeControl: TimeControlId, playerRating: number): Promise<Match>;
   cancelQueue(): Promise<void>;
-  /** Tells the mock opponent what just happened so it can reply; pass the resulting board and whose turn it now is. */
-  sendMove(move: Move, board: Board, turnColor: Color): Promise<void>;
-  onOpponentMove(callback: (move: Move) => void): () => void;
+  startMatch(match: Match, state: GameState): void;
+  /** Sync complete rule context, also when the opponent moves first or the game ends. */
+  updateGame(state: GameState): void;
+  sendMove(move: Move, state: GameState): Promise<void>;
+  onOpponentMove(callback: (move: Move, expectedState: GameState) => void): () => void;
   resign(): Promise<void>;
   disconnect(): Promise<void>;
 }
@@ -18,26 +21,36 @@ export class QueueCancelledError extends Error { constructor() { super('Matchmak
 
 const opponentNames = ['KnightRider', 'QuietBishop', 'PawnStorm', 'CastleCrew', 'TempoFox', 'OpenFile'];
 
-class MockMultiplayerService implements MultiplayerService {
-  private queueTimer?: ReturnType<typeof setTimeout>;
-  private replyTimer?: ReturnType<typeof setTimeout>;
+/** Local demo transport only: no network peer, authoritative server or real rating. */
+export class MockMultiplayerService implements MultiplayerService {
+  private cancelQueueTimer?: () => void;
+  private queueGeneration = 0;
   private rejectQueue?: (reason: QueueCancelledError) => void;
-  private opponentMove?: (move: Move) => void;
+  private opponentMove?: (move: Move, expectedState: GameState) => void;
+  private match?: Match;
+  private state?: GameState;
+  private readonly replies: OpponentTurnScheduler;
+
+  constructor(private readonly schedule: ScheduleTimer = scheduleTimer, private readonly random = Math.random) {
+    this.replies = new OpponentTurnScheduler(schedule);
+  }
 
   async connect() { /* Future WebSocket: open socket and authenticate current user. */ }
 
   joinQueue(timeControl: TimeControlId, playerRating: number) {
     void this.cancelQueue();
+    const generation = this.queueGeneration;
     return new Promise<Match>((resolve, reject) => {
       this.rejectQueue = reject;
-      this.queueTimer = setTimeout(() => {
-        const ratingOffset = Math.floor(Math.random() * 181) - 90;
-        this.queueTimer = undefined;
+      this.cancelQueueTimer = this.schedule(() => {
+        if (generation !== this.queueGeneration) return;
+        const ratingOffset = Math.floor(this.random() * 181) - 90;
+        this.cancelQueueTimer = undefined;
         this.rejectQueue = undefined;
         resolve({
           matchId: `mock-${Date.now()}`,
-          playerColor: Math.random() > .5 ? 'white' : 'black',
-          opponentName: opponentNames[Math.floor(Math.random() * opponentNames.length)],
+          playerColor: this.random() > .5 ? 'white' : 'black',
+          opponentName: opponentNames[Math.floor(this.random() * opponentNames.length)],
           opponentRating: Math.max(0, Math.min(3500, playerRating + ratingOffset)),
           timeControl: TIME_CONTROLS[timeControl],
           mode: 'mock-online',
@@ -47,32 +60,62 @@ class MockMultiplayerService implements MultiplayerService {
   }
 
   async cancelQueue() {
-    if (this.queueTimer) clearTimeout(this.queueTimer);
-    this.queueTimer = undefined;
+    this.queueGeneration++;
+    this.cancelQueueTimer?.();
+    this.cancelQueueTimer = undefined;
     const reject = this.rejectQueue;
     this.rejectQueue = undefined;
     reject?.(new QueueCancelledError());
   }
 
-  async sendMove(_move: Move, board: Board, turnColor: Color) {
-    // Future WebSocket: send the move request; the backend validates it and broadcasts the accepted move to both clients.
-    // Locally we stand in for the opponent by picking a random legal reply for whichever color is now on the move.
-    if (this.replyTimer) clearTimeout(this.replyTimer);
-    const candidates = allLegalMoves(board, turnColor);
-    if (candidates.length === 0) return;
-    this.replyTimer = setTimeout(() => {
-      this.replyTimer = undefined;
-      const reply = candidates[Math.floor(Math.random() * candidates.length)];
-      this.opponentMove?.(reply);
-    }, 500 + Math.random() * 900);
+  startMatch(match: Match, state: GameState) {
+    this.replies.cancel();
+    this.match = match;
+    this.state = undefined;
+    this.updateGame(state);
   }
 
-  onOpponentMove(callback: (move: Move) => void) { this.opponentMove = callback; return () => { this.opponentMove = undefined; }; }
-  async resign() { /* Future WebSocket: notify server. */ }
+  updateGame(state: GameState) {
+    if (this.state === state) return;
+    this.state = state;
+    const match = this.match;
+    this.replies.cancel();
+    if (!match) return;
+    this.replies.scheduleTurn({
+      state,
+      color: opponent(match.playerColor),
+      delayMs: 500 + this.random() * 900,
+      chooseMove: position => chooseComputerMove(position, 'easy'),
+      isCurrent: () => this.match === match && this.state === state && !!this.opponentMove,
+      onMove: (move, expectedState) => this.opponentMove?.(move, expectedState),
+    });
+  }
+
+  async sendMove(_move: Move, state: GameState) {
+    // A real transport must validate/broadcast moves on an authoritative backend.
+    this.updateGame(state);
+  }
+
+  onOpponentMove(callback: (move: Move, expectedState: GameState) => void) {
+    this.opponentMove = callback;
+    return () => {
+      // An older screen's cleanup must not unsubscribe a newer screen.
+      if (this.opponentMove === callback) this.opponentMove = undefined;
+    };
+  }
+
+  async resign() {
+    this.replies.cancel();
+    this.match = undefined;
+    this.state = undefined;
+  }
+
   async disconnect() {
-    await this.cancelQueue();
-    if (this.replyTimer) clearTimeout(this.replyTimer);
-    this.replyTimer = undefined;
+    // Cancel synchronously before any asynchronous teardown can yield.
+    void this.cancelQueue();
+    this.replies.cancel();
+    this.match = undefined;
+    this.state = undefined;
     this.opponentMove = undefined;
   }
 }

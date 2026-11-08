@@ -15,16 +15,17 @@ Scan the QR code with Expo Go, or run `npm run web` to try it in a browser. The 
 
 ```bash
 npm run typecheck   # tsc --noEmit over the app and the test suite
-npm test            # node's test runner (via tsx) over the pure game logic
+npm test            # Node's test runner with the tsx loader
+npm run check       # type checks and behavior tests
 ```
 
-The test suite (`src/game/__tests__`) covers check/checkmate/stalemate detection, castling, en passant, promotion, the 50-move rule, threefold repetition, insufficient material, pins, daily-puzzle generation, the password hashing helper, and the Elo rating math — all pure functions with no React Native dependency, so they run under plain Node.
+The test suite (`src/game/__tests__`) covers check/checkmate/stalemate detection, castling, en passant, promotion, the 50-move rule, threefold repetition, insufficient material, pawn attack geometry, repetition identity, Shifter mating material, promotion choices, opponent ownership and cancellation, deterministic computer play, pins, daily-puzzle generation, the password hashing helper, and the Elo rating math — all pure functions with no React Native dependency, so they run under plain Node.
 
 ## Implemented Screens
 
 - Welcome: logo/name, login, register, continue as guest.
 - Login/Register: local mock account flows with email format and password length validation.
-- Home: current rating, Daily Puzzle, Play Local, Multiplayer, Rules, Settings.
+- Home: current rating, Daily Puzzle, local pass-and-play, Easy/Medium/Hard computer games, Multiplayer, Rules, Settings.
 - Daily Puzzle: procedurally generates and stores today's and tomorrow's puzzles from a rotating set of tactical templates (knight fork, both Shifter capture styles, back-rank mate-in-one), rotates them by local date, tags each with a difficulty, and remembers completion.
 - Multiplayer: mobile-first rated matchmaking for Blitz 3+0, Bullet 1+1, and Rapid 10+0, including a cancellable queue, an expanding rating range, and a mock opponent that actually replies with legal moves.
 - Rating: persistent Elo-style multiplayer ratings from 0–3500, with a 1200 starting rating and rating-based matchmaking.
@@ -41,7 +42,8 @@ The test suite (`src/game/__tests__`) covers check/checkmate/stalemate detection
 - The Shifter can also move exactly one square orthogonally up/down/left/right.
 - Captures are allowed on both Shifter movement types.
 - Full move legality: pins, check, checkmate, stalemate, castling (king + unmoved rook, empty and unattacked squares between/through), en passant, and pawn promotion to Queen, Rook, Bishop, Knight, or Shifter.
-- Draws: stalemate, the 50-move rule, threefold repetition, and insufficient material (lone kings plus at most one minor piece each) are all detected automatically.
+- Draws: stalemate, the 50-move rule, threefold repetition, and insufficient material (bare kings, a single ordinary bishop or knight against a bare king, or only bishops all on the same square color) are all detected automatically.
+- A Shifter is mating material and never triggers the insufficient-material rule. Repetition includes the initial position, side to move, castling rights, and only legally usable en passant rights.
 - Resignation and clock timeout are also implemented; the clock stops ticking once the game is over.
 
 Pure rules live in `/src/game`:
@@ -55,6 +57,10 @@ Pure rules live in `/src/game`:
 - `gameState.ts` — turn order, move history, and all game-ending conditions (checkmate, stalemate, draws, resignation, timeout).
 - `timers.ts` — clock state and time controls.
 - `rating.ts` — the Elo-style rating formula.
+
+## Local computer opponents
+
+Easy, Medium, and Hard are deterministic local opponents, adapted from PR #4 to the current rules engine. They use the same legal moves and game-state transitions as human play, including castling, en passant, all five promotions, and draws. Difficulty labels describe search strategies, not calibrated Elo ratings. Computer games are local and do not affect ratings.
 
 ## Expo Go Mocked Features
 
@@ -84,7 +90,7 @@ The interface is ready to be replaced by backend/JWT auth later (with server-sid
 
 ### Multiplayer
 
-`/src/services/multiplayer/MultiplayerService.ts` is WebSocket-ready but currently mock-only in Expo Go. Matchmaking pairs the player with a nearby-rated mock opponent, randomizes color, and returns a match id, opponent profile, time control, and `mode="mock-online"`. After each of your moves, the mock opponent picks a random legal reply and plays it after a short delay; the Game screen also enforces that you can only move your own assigned color while it's mock-online. Queue cancellation is handled explicitly so a cancelled search cannot launch a game later.
+`/src/services/multiplayer/MultiplayerService.ts` is WebSocket-ready but currently mock-only in Expo Go. Matchmaking pairs the player with a nearby-rated mock opponent, randomizes color, and returns a match id, opponent profile, time control, and `mode="mock-online"`. When assigned Black, the mock opponent opens as White. On every opponent turn it picks a legal reply, including en passant and promotion, after a short delay; the Game screen also enforces that you can only move your own assigned color while it's mock-online. Queue cancellation is handled explicitly so a cancelled search cannot launch a game later. Pending opponent moves are cancelled when the game ends or you leave, and resigning always resigns your assigned color.
 
 Production architecture notes:
 

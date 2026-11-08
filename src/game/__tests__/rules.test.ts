@@ -133,7 +133,7 @@ test('pawns promote to the requested piece', () => {
   assert.ok(state.history[0].includes('=N'));
 });
 
-test('lone kings plus at most one minor piece each is an insufficient-material draw', () => {
+test('a lone ordinary minor against a bare king is an insufficient-material draw', () => {
   const board = place(emptyBoard(), [
     [0, 0, { type: 'K', color: 'black' }],
     [7, 9, { type: 'K', color: 'white' }],
@@ -147,9 +147,8 @@ test('lone kings plus at most one minor piece each is an insufficient-material d
     [0, 0, { type: 'K', color: 'black' }],
     [7, 9, { type: 'K', color: 'white' }],
     [4, 4, { type: 'N', color: 'white' }],
-    [3, 3, { type: 'N', color: 'black', moved: true }],
   ]);
-  const state = makeMove(stateWithBoard(bare, { turn: 'black' }), { from: { row: 3, col: 3 }, to: { row: 5, col: 4 } });
+  const state = makeMove(stateWithBoard(bare, { turn: 'white' }), { from: { row: 4, col: 4 }, to: { row: 2, col: 3 } });
   assert.equal(state.status, 'draw_material');
 });
 

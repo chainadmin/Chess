@@ -1,14 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
 import { COLS, ROWS, algebraic, sameSquare } from '../game/board';
-import { createGameState, DRAW_STATUSES, GameState, GameStatus, makeMove, resign, timeout } from '../game/gameState';
+import { DRAW_STATUSES, GameState, GameStatus } from '../game/gameState';
 import { isInCheck, legalMoves } from '../game/legalMoves';
 import { Move, PIECE_NAMES, PIECE_VALUE, PROMOTION_CHOICES, PieceType, SYMBOLS } from '../game/pieces';
-import { applyMoveClock, ClockState, createClock, formatMs, tickClock, TIME_CONTROLS } from '../game/timers';
+import { formatMs, TIME_CONTROLS } from '../game/timers';
+import { chooseComputerMove } from '../game/computerPlayer';
+import { canPlayerMove, confirmResignRequest, createResignRequest, createSession, GameSession, MoveActor, OpponentTurnScheduler, playSessionMove, ResignRequest, tickSession } from '../game/opponentFlow';
 import { adService } from '../services/ads/AdService';
 import { multiplayerService } from '../services/multiplayer/MultiplayerService';
 import { authService } from '../services/auth/AuthService';
@@ -40,81 +43,126 @@ function afterMoveSound(prev: GameState, next: GameState) {
 
 export function GameScreen({ route, navigation }: Props) {
   const mode = route.params.mode;
-  const match = route.params.match;
-  const [state, setState] = useState<GameState>(createGameState);
-  const [clock, setClock] = useState<ClockState>(() => createClock(match?.timeControl ?? TIME_CONTROLS.blitz_3_0));
+  const match = route.params.mode === 'multiplayer' ? route.params.match : undefined;
+  const computerDifficulty = route.params.mode === 'local' ? route.params.computerDifficulty : undefined;
+  const playerColor = match?.playerColor ?? (computerDifficulty ? 'white' : undefined);
+  const timeControl = match?.timeControl ?? TIME_CONTROLS.blitz_3_0;
+  const [session, setSession] = useState<GameSession>(() => createSession(timeControl));
+  const sessionRef = useRef(session);
+  const { game: state, clock } = session;
+  const isFocused = useIsFocused();
+  const focusedRef = useRef(false);
+  const computer = useRef(new OpponentTurnScheduler());
+  const gameGeneration = useRef(0);
   const [ratingChange, setRatingChange] = useState<RatingChange | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<Move | null>(null);
+  const [resignRequest, setResignRequest] = useState<ResignRequest | null>(null);
   const adRecorded = useRef(false);
   const ratingRecorded = useRef(false);
   const moves = useMemo(() => state.selected ? legalMoves(state.board, state.selected.row, state.selected.col, { enPassantTarget: state.enPassant }) : [], [state]);
+  const inputLocked = !canPlayerMove(state, playerColor);
+
+  // Event handlers update a synchronous snapshot and React together. Rule/clock
+  // transitions are pure; sounds and transport calls never run in a state updater.
+  const commit = useCallback((next: GameSession) => {
+    sessionRef.current = next;
+    setSession(next);
+  }, []);
+
+  const play = useCallback((move: Move, actor: MoveActor = 'player', expectedState?: GameState) => {
+    if (!focusedRef.current) return;
+    const before = sessionRef.current;
+    if (expectedState && before.game !== expectedState) return;
+    const next = playSessionMove(before, move, actor, playerColor);
+    if (next === before) return;
+    commit(next);
+    soundService.play(afterMoveSound(before.game, next.game));
+    if (mode === 'multiplayer' && actor === 'player') void multiplayerService.sendMove(move, next.game);
+  }, [commit, mode, playerColor]);
+
+  useFocusEffect(useCallback(() => {
+    focusedRef.current = true;
+    const unsubscribe = mode === 'multiplayer'
+      ? multiplayerService.onOpponentMove((move, expectedState) => play(move, 'opponent', expectedState))
+      : undefined;
+    if (match) multiplayerService.startMatch(match, sessionRef.current.game);
+    const timer = setInterval(() => {
+      const before = sessionRef.current;
+      if (!focusedRef.current) return;
+      const next = tickSession(before, 1000);
+      if (next !== before) commit(next);
+    }, 1000);
+    return () => {
+      focusedRef.current = false;
+      gameGeneration.current++;
+      clearInterval(timer);
+      computer.current.cancel();
+      unsubscribe?.();
+      if (mode === 'multiplayer') void multiplayerService.disconnect();
+      setPendingPromotion(null);
+      setResignRequest(null);
+    };
+  }, [commit, match, mode, play]));
 
   useEffect(() => {
-    if (state.status !== 'active') return;
-    const id = setInterval(() => setClock(c => tickClock(c, 1000)), 1000);
-    return () => clearInterval(id);
-  }, [state.status]);
+    if (!isFocused) return;
+    if (mode === 'multiplayer') multiplayerService.updateGame(state);
+    if (!computerDifficulty) return;
+    const scheduler = computer.current;
+    scheduler.scheduleTurn({
+      state, color: 'black', delayMs: 450,
+      chooseMove: position => chooseComputerMove(position, computerDifficulty),
+      isCurrent: () => focusedRef.current && sessionRef.current.game === state,
+      onMove: (move, expectedState) => play(move, 'opponent', expectedState),
+    });
+    return () => scheduler.cancel();
+  }, [computerDifficulty, isFocused, mode, play, state]);
 
-  useEffect(() => { if (clock.timedOut && state.status === 'active') setState(s => timeout(s, clock.timedOut!)); }, [clock.timedOut, state.status]);
-  useEffect(() => { if (state.status !== 'active' && !adRecorded.current) { adRecorded.current = true; adService.recordCompletedGame(); } }, [state.status]);
+  useEffect(() => {
+    if (state.status === 'active') return;
+    setPendingPromotion(null);
+    setResignRequest(null);
+    if (!adRecorded.current) { adRecorded.current = true; void adService.recordCompletedGame(); }
+  }, [state.status]);
 
   useEffect(() => {
     if (mode !== 'multiplayer' || !match || state.status === 'active' || ratingRecorded.current) return;
     ratingRecorded.current = true;
-    authService.currentUser().then(user => {
+    const generation = gameGeneration.current;
+    authService.currentUser().then(async user => {
       if (!user) return;
       const result: GameResult = state.winner === undefined ? 'draw' : state.winner === match.playerColor ? 'win' : 'loss';
-      ratingService.recordResult(user.id, match.opponentRating, result).then(setRatingChange);
+      const change = await ratingService.recordResult(user.id, match.opponentRating, result);
+      if (focusedRef.current && generation === gameGeneration.current) setRatingChange(change);
     });
   }, [match, mode, state.status, state.winner]);
 
-  useEffect(() => {
-    if (mode !== 'multiplayer') return;
-    const unsubscribe = multiplayerService.onOpponentMove(move => {
-      setState(prev => {
-        if (prev.status !== 'active') return prev;
-        const next = makeMove(prev, move);
-        if (next === prev) return prev;
-        setClock(c => applyMoveClock(c, prev.turn));
-        soundService.play(afterMoveSound(prev, next));
-        return next;
-      });
-    });
-    return () => { unsubscribe(); multiplayerService.disconnect(); };
-  }, [mode]);
-
   function reset() {
+    computer.current.cancel();
+    gameGeneration.current++;
     adRecorded.current = false;
     ratingRecorded.current = false;
     setRatingChange(null);
     setPendingPromotion(null);
-    setState(createGameState());
-    setClock(createClock(match?.timeControl ?? TIME_CONTROLS.blitz_3_0));
-  }
-
-  async function play(move: Move) {
-    const before = state;
-    const next = makeMove(before, move);
-    if (next === before) return;
-    setState(next);
-    setClock(c => applyMoveClock(c, before.turn));
-    soundService.play(afterMoveSound(before, next));
-    if (mode === 'multiplayer') await multiplayerService.sendMove(move, next.board, next.turn);
+    setResignRequest(null);
+    commit(createSession(timeControl));
   }
 
   function tap(row: number, col: number) {
-    if (state.status !== 'active' || pendingPromotion) return;
-    if (mode === 'multiplayer' && match && state.turn !== match.playerColor) return;
-    const piece = state.board[row][col];
-    const picked = moves.find(m => m.row === row && m.col === col);
-    if (state.selected && picked) {
-      const moving = state.board[state.selected.row][state.selected.col];
+    const current = sessionRef.current.game;
+    if (!focusedRef.current || !canPlayerMove(current, playerColor) || pendingPromotion) return;
+    const piece = current.board[row][col];
+    const available = current.selected ? legalMoves(current.board, current.selected.row, current.selected.col, { enPassantTarget: current.enPassant }) : [];
+    const picked = available.find(m => m.row === row && m.col === col);
+    if (current.selected && picked) {
+      const moving = current.board[current.selected.row][current.selected.col];
       const isPromotion = moving?.type === 'P' && (picked.row === 0 || picked.row === ROWS - 1);
-      const move: Move = { from: state.selected, to: picked, shift: picked.shift };
+      const move: Move = { from: current.selected, to: picked, shift: picked.shift };
       if (isPromotion) setPendingPromotion(move);
       else play(move);
-    } else if (piece?.color === state.turn) setState(s => ({ ...s, selected: { row, col } }));
-    else setState(s => ({ ...s, selected: null }));
+    } else {
+      commit({ ...sessionRef.current, game: { ...current, selected: piece?.color === current.turn ? { row, col } : null } });
+    }
   }
 
   function choosePromotion(type: PieceType) {
@@ -124,7 +172,29 @@ export function GameScreen({ route, navigation }: Props) {
     play(move);
   }
 
-  function doResign() { Alert.alert('Resign?', 'End this game now?', [{ text: 'Cancel' }, { text: 'Resign', style: 'destructive', onPress: () => setState(s => resign(s, s.turn)) }]); }
+  function doResign() {
+    if (sessionRef.current.game.status !== 'active') return;
+    setResignRequest(createResignRequest(sessionRef.current, gameGeneration.current, playerColor));
+  }
+
+  function confirmResign() {
+    if (!focusedRef.current || !resignRequest) return;
+    const next = confirmResignRequest(sessionRef.current, resignRequest, gameGeneration.current);
+    setResignRequest(null);
+    if (next === sessionRef.current) return;
+    computer.current.cancel();
+    if (mode === 'multiplayer') void multiplayerService.resign();
+    setPendingPromotion(null);
+    commit(next);
+    soundService.play('gameEnd');
+  }
+
+  function goHome() {
+    focusedRef.current = false;
+    computer.current.cancel();
+    if (mode === 'multiplayer') void multiplayerService.disconnect();
+    navigation.navigate('Home');
+  }
 
   const capturedByWhite = state.captured.filter(p => p.color === 'black');
   const capturedByBlack = state.captured.filter(p => p.color === 'white');
@@ -132,16 +202,17 @@ export function GameScreen({ route, navigation }: Props) {
   const materialEdge = materialOf(capturedByWhite) - materialOf(capturedByBlack);
   const inCheck = state.status === 'active' && isInCheck(state.board, state.turn);
   const isDraw = DRAW_STATUSES.includes(state.status);
-  const title = mode === 'local' ? 'Local Game' : `vs ${match?.opponentName} (${match?.opponentRating})`;
+  const title = computerDifficulty ? `Computer ${computerDifficulty[0].toUpperCase()}${computerDifficulty.slice(1)}` : mode === 'local' ? 'Local Game' : `vs ${match?.opponentName} (${match?.opponentRating})`;
+  const thinking = state.status === 'active' && inputLocked;
 
   return <Screen style={styles.screen}>
     <View style={styles.header}>
-      <Text style={styles.eyebrow}>{mode === 'local' ? 'LOCAL PLAY' : 'RATED MATCH'}</Text>
+      <Text style={styles.eyebrow}>{computerDifficulty ? 'YOU PLAY WHITE' : mode === 'local' ? 'PASS AND PLAY' : `MOCK MATCH · YOU PLAY ${playerColor?.toUpperCase()}`}</Text>
       <Text style={styles.title}>{title}</Text>
       <View style={[styles.statusPill, state.status === 'active' ? (inCheck ? styles.statusCheck : styles.statusActive) : (isDraw ? styles.statusDraw : styles.statusOver)]}>
-        <Text style={styles.statusText}>{statusMessage(state)}</Text>
+        <Text style={styles.statusText}>{thinking ? computerDifficulty ? 'Computer thinking…' : 'Mock opponent thinking…' : statusMessage(state)}</Text>
       </View>
-      {ratingChange && <Text style={ratingChange.change >= 0 ? styles.ratingGain : styles.ratingLoss}>Rating {ratingChange.before} → {ratingChange.after} ({ratingChange.change >= 0 ? '+' : ''}{ratingChange.change})</Text>}
+      {ratingChange && <Text style={ratingChange.change >= 0 ? styles.ratingGain : styles.ratingLoss}>Demo rating {ratingChange.before} → {ratingChange.after} ({ratingChange.change >= 0 ? '+' : ''}{ratingChange.change})</Text>}
     </View>
 
     <View style={styles.clocks}>
@@ -185,15 +256,26 @@ export function GameScreen({ route, navigation }: Props) {
     </View>
 
     <View style={styles.actions}>
-      <AppButton title="Resign" onPress={doResign} secondary />
+      <AppButton title="Resign" onPress={doResign} secondary disabled={state.status !== 'active'} />
       {mode === 'local' && <AppButton title="New Game" onPress={reset} secondary />}
     </View>
 
     <Text style={styles.subhead}>Move History</Text>
     <ScrollView style={styles.history}>{state.history.map((h, i) => <Text key={i} style={styles.historyLine}>{state.history.length - i}. {h}</Text>)}</ScrollView>
-    <AppButton title="Back Home" onPress={() => navigation.navigate('Home')} secondary />
+    <AppButton title="Back Home" onPress={goHome} secondary />
 
-    <Modal visible={!!pendingPromotion} transparent animationType="fade">
+    <Modal visible={!!resignRequest && state.status === 'active' && isFocused} onRequestClose={() => setResignRequest(null)} transparent animationType="fade">
+      <View style={styles.promoBackdrop}>
+        <View style={styles.promoCard}>
+          <Text style={styles.promoTitle}>Resign this game?</Text>
+          <Text style={styles.confirmCopy}>{resignRequest?.color === 'black' ? 'Black' : 'White'} will resign. This ends the game.</Text>
+          <AppButton title="Keep Playing" secondary onPress={() => setResignRequest(null)} />
+          <AppButton title="Confirm Resignation" onPress={confirmResign} />
+        </View>
+      </View>
+    </Modal>
+
+    <Modal visible={!!pendingPromotion && state.status === 'active' && isFocused} onRequestClose={() => setPendingPromotion(null)} transparent animationType="fade">
       <View style={styles.promoBackdrop}>
         <View style={styles.promoCard}>
           <Text style={styles.promoTitle}>Promote your pawn</Text>
@@ -251,6 +333,7 @@ const styles = StyleSheet.create({
   promoBackdrop: { flex: 1, backgroundColor: '#000a', justifyContent: 'center', padding: 24 },
   promoCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 20, borderWidth: 1, borderColor: theme.colors.border },
   promoTitle: { color: theme.colors.text, fontWeight: '900', fontSize: 18, textAlign: 'center', marginBottom: 14 },
+  confirmCopy: { color: theme.colors.textDim, textAlign: 'center', marginBottom: 10 },
   promoOptions: { flexDirection: 'row', justifyContent: 'space-between' },
   promoOption: { alignItems: 'center', flex: 1, paddingVertical: 8 },
   promoSymbol: { fontSize: 30, color: '#fffaf0', backgroundColor: theme.colors.surfaceAlt, width: 52, height: 52, borderRadius: 14, textAlign: 'center', textAlignVertical: 'center', overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border },

@@ -1,5 +1,5 @@
 import { Board } from './board';
-import { Move, Piece, PieceType, Square } from './pieces';
+import { Move, Piece, PieceType, PROMOTION_CHOICES, Square } from './pieces';
 import { legalMoves } from './legalMoves';
 import { applyRawMove } from './applyRaw';
 export type ApplyContext = { enPassantTarget?: Square | null; promotion?: PieceType };
@@ -10,7 +10,9 @@ export function applyMove(board: Board, move: Move, context: ApplyContext = {}):
   if (!legal) return null;
   const isEnPassant = piece.type === 'P' && move.from.col !== move.to.col && !board[move.to.row][move.to.col];
   const captured = isEnPassant ? board[move.from.row][move.to.col] ?? undefined : board[move.to.row][move.to.col] ?? undefined;
-  const board2 = applyRawMove(board, move, context.promotion ?? 'Q');
+  const promotion = context.promotion ?? move.promotion ?? 'Q';
+  if (!PROMOTION_CHOICES.includes(promotion)) return null;
+  const board2 = applyRawMove(board, move, promotion);
   const isDoubleStep = piece.type === 'P' && Math.abs(move.to.row - move.from.row) === 2;
   const enPassantTarget = isDoubleStep ? { row: (move.from.row + move.to.row) / 2, col: move.from.col } : null;
   const isCastle = piece.type === 'K' && Math.abs(move.to.col - move.from.col) === 2;

@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
@@ -21,12 +22,26 @@ export function MultiplayerScreen({ navigation }: Props) {
   const [selected, setSelected] = useState<TimeControlId>('blitz_3_0');
   const [searching, setSearching] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [rating, setRating] = useState(INITIAL_RATING);
+  const request = useRef(0);
+  const searchingRef = useRef(false);
+  const focused = useRef(false);
 
   useEffect(() => {
     authService.currentUser().then(user => user && ratingService.getRating(user.id).then(current => setRating(current.value)));
-    return () => { void multiplayerService.cancelQueue(); };
   }, []);
+
+  useFocusEffect(useCallback(() => {
+    focused.current = true;
+    return () => {
+      focused.current = false;
+      request.current++;
+      searchingRef.current = false;
+      void multiplayerService.cancelQueue();
+      setSearching(false);
+    };
+  }, []));
 
   useEffect(() => {
     if (!searching) return;
@@ -37,20 +52,32 @@ export function MultiplayerScreen({ navigation }: Props) {
   const ratingWindow = useMemo(() => Math.min(400, 100 + Math.floor(elapsed / 5) * 50), [elapsed]);
 
   const findMatch = async () => {
+    if (searchingRef.current || !focused.current) return;
+    searchingRef.current = true;
+    const current = ++request.current;
     setElapsed(0);
+    setErrorMessage(null);
     setSearching(true);
     try {
       await multiplayerService.connect();
+      if (current !== request.current || !focused.current) return;
       const match = await multiplayerService.joinQueue(selected, rating);
+      if (current !== request.current || !focused.current) return;
+      searchingRef.current = false;
       setSearching(false);
       navigation.replace('Game', { mode: 'multiplayer', match });
     } catch (error) {
-      if (!(error instanceof QueueCancelledError)) throw error;
+      if (current !== request.current || !focused.current) return;
+      searchingRef.current = false;
+      setSearching(false);
+      if (!(error instanceof QueueCancelledError)) setErrorMessage('Match unavailable. Please try again.');
     }
   };
 
-  const cancel = async () => {
-    await multiplayerService.cancelQueue();
+  const cancel = () => {
+    request.current++;
+    searchingRef.current = false;
+    void multiplayerService.cancelQueue();
     setSearching(false);
     setElapsed(0);
   };
@@ -59,9 +86,9 @@ export function MultiplayerScreen({ navigation }: Props) {
     const control = TIME_CONTROLS[selected];
     return <Screen style={styles.searchScreen}>
       <View style={styles.searchTop}>
-        <Text style={styles.eyebrow}>MATCHMAKING</Text>
-        <Text style={styles.searchTitle}>Finding your opponent</Text>
-        <Text style={styles.searchCopy}>Searching for a fair, rated game</Text>
+        <Text style={styles.eyebrow}>MOCK MATCHMAKING</Text>
+        <Text style={styles.searchTitle}>Preparing a demo match</Text>
+        <Text style={styles.searchCopy}>A local computer will play the other side</Text>
       </View>
       <View style={styles.radar}>
         <View style={styles.ringOuter}><View style={styles.ringMiddle}><View style={styles.avatar}><Text style={styles.avatarPiece}>♞</Text></View></View></View>
@@ -74,7 +101,7 @@ export function MultiplayerScreen({ navigation }: Props) {
         <View style={styles.divider} />
         <View style={styles.queueRow}><Text style={styles.queueLabel}>Time searching</Text><Text style={styles.queueValue}>0:{String(elapsed).padStart(2, '0')}</Text></View>
       </View>
-      <Text style={styles.expandCopy}>The rating range expands while you wait.</Text>
+      <Text style={styles.expandCopy}>Demo only. No live players or online rating.</Text>
       <Pressable accessibilityRole="button" onPress={cancel} style={styles.cancelButton}><Text style={styles.cancelText}>Cancel search</Text></Pressable>
     </Screen>;
   }
@@ -83,8 +110,8 @@ export function MultiplayerScreen({ navigation }: Props) {
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>ONLINE PLAY</Text>
-          <Text style={styles.title}>Find a match</Text>
+          <Text style={styles.eyebrow}>LOCAL DEMO</Text>
+          <Text style={styles.title}>Mock multiplayer</Text>
         </View>
         <View style={styles.onlinePill}><View style={styles.onlineDot}/><Text style={styles.onlineText}>Mock matchmaking</Text></View>
       </View>
@@ -92,7 +119,7 @@ export function MultiplayerScreen({ navigation }: Props) {
       <View style={styles.profileCard}>
         <View style={styles.miniAvatar}><Text style={styles.miniAvatarText}>♞</Text></View>
         <View style={styles.profileCopy}><Text style={styles.profileLabel}>YOUR RATING</Text><Text style={styles.rating}>{rating}</Text></View>
-        <View style={styles.ratedBadge}><Text style={styles.ratedText}>RATED</Text></View>
+        <View style={styles.ratedBadge}><Text style={styles.ratedText}>DEMO</Text></View>
       </View>
 
       <Text style={styles.sectionTitle}>Choose a time control</Text>
@@ -107,7 +134,8 @@ export function MultiplayerScreen({ navigation }: Props) {
         })}
       </View>
 
-      <View style={styles.fairPlay}><Text style={styles.shield}>♜</Text><View style={styles.fairCopy}><Text style={styles.fairTitle}>Fair matchmaking</Text><Text style={styles.fairDetail}>We start with players within 100 rating points and gradually widen the search.</Text></View></View>
+      <View style={styles.fairPlay}><Text style={styles.shield}>♜</Text><View style={styles.fairCopy}><Text style={styles.fairTitle}>Simulated matchmaking</Text><Text style={styles.fairDetail}>This demo generates a nearby opponent rating and keeps results on this device. Real matchmaking needs a backend.</Text></View></View>
+      {errorMessage && <Text accessibilityRole="alert" style={styles.errorText}>{errorMessage}</Text>}
       <Pressable accessibilityRole="button" onPress={findMatch} style={({ pressed }) => [styles.findButton, pressed && styles.pressed]}><Text style={styles.findText}>Find Match</Text><Text style={styles.findArrow}>→</Text></Pressable>
     </ScrollView>
   </Screen>;
@@ -129,6 +157,7 @@ const styles = StyleSheet.create({
   optionIcon: { width: 38, fontSize: 23 }, optionCopy: { flex: 1 }, optionName: { color: theme.colors.text, fontSize: 17, fontWeight: '900' }, optionDetail: { color: theme.colors.textFaint, fontSize: 12, marginTop: 3 },
   radio: { width: 21, height: 21, borderRadius: 11, borderWidth: 2, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }, radioActive: { borderColor: theme.colors.accent }, radioCenter: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.accent },
   fairPlay: { flexDirection: 'row', marginTop: 22, marginBottom: 20, paddingHorizontal: 4 }, shield: { color: theme.colors.cyan, fontSize: 20, marginRight: 12 }, fairCopy: { flex: 1 }, fairTitle: { color: theme.colors.textDim, fontSize: 13, fontWeight: '800' }, fairDetail: { color: theme.colors.textFaint, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  errorText: { color: theme.colors.danger, textAlign: 'center', marginBottom: 12 },
   findButton: { height: 58, borderRadius: 18, backgroundColor: theme.colors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }, pressed: { opacity: .82 }, findText: { color: '#241608', fontSize: 17, fontWeight: '900' }, findArrow: { color: '#241608', position: 'absolute', right: 20, fontSize: 22, fontWeight: '700' },
   searchScreen: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 26 }, searchTop: { alignItems: 'center' }, searchTitle: { color: theme.colors.text, fontSize: 27, fontWeight: '900', textAlign: 'center' }, searchCopy: { color: theme.colors.textFaint, marginTop: 7, fontSize: 13 },
   radar: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center' }, ringOuter: { width: 180, height: 180, borderRadius: 90, borderWidth: 1, borderColor: '#5be8ef25', alignItems: 'center', justifyContent: 'center', backgroundColor: '#5be8ef08' }, ringMiddle: { width: 126, height: 126, borderRadius: 63, borderWidth: 1, borderColor: '#5be8ef40', alignItems: 'center', justifyContent: 'center', backgroundColor: '#5be8ef0d' }, avatar: { width: 78, height: 78, borderRadius: 25, backgroundColor: theme.colors.accent, alignItems: 'center', justifyContent: 'center' }, avatarPiece: { fontSize: 47, color: '#241608' }, pulse: { position: 'absolute', right: '24%', top: '30%', width: 27, height: 27, borderRadius: 14, backgroundColor: theme.colors.success, alignItems: 'center', justifyContent: 'center' },

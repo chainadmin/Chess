@@ -17,7 +17,7 @@ export function RulesScreen() {
 
       <View style={styles.card}>
         <Text style={styles.heading}>Standard rules that still apply</Text>
-        <Text style={styles.copy}>• Castling: the king and an unmoved rook may castle if the squares between them are empty and the king doesn't pass through or land on an attacked square.</Text>
+        <Text style={styles.copy}>• Castling: an unmoved king on its starting square and an unmoved corner rook may castle if the squares between them are empty and the king doesn't pass through or land on an attacked square.</Text>
         <Text style={styles.copy}>• En passant: a pawn that advances two squares can be captured in passing by an enemy pawn on the very next move.</Text>
         <Text style={styles.copy}>• Promotion: a pawn reaching the last rank promotes to a Queen, Rook, Bishop, Knight, or Shifter — your choice.</Text>
       </View>
@@ -26,6 +26,7 @@ export function RulesScreen() {
         <Text style={styles.heading}>How games end</Text>
         <Text style={styles.copy}>• Checkmate or resignation ends the game immediately.</Text>
         <Text style={styles.copy}>• Stalemate, the 50-move rule, threefold repetition, and insufficient material are all draws.</Text>
+        <Text style={styles.copy}>• A king and Shifter can checkmate, so they are not insufficient material.</Text>
         <Text style={styles.copy}>• In timed games, running out of the clock loses on time.</Text>
       </View>
     </ScrollView>
