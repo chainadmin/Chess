@@ -4,11 +4,14 @@ import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
+import { ChessBoard } from '../components/ChessBoard';
+import { PieceView } from '../components/PieceView';
+import { useAppearance } from '../appearance/useAppearance';
 import { AppButton } from '../components/AppButton';
-import { COLS, ROWS, algebraic, sameSquare } from '../game/board';
+import { ROWS } from '../game/board';
 import { DRAW_STATUSES, GameState, GameStatus } from '../game/gameState';
 import { isInCheck, legalMoves } from '../game/legalMoves';
-import { Move, PIECE_NAMES, PIECE_VALUE, PROMOTION_CHOICES, PieceType, SYMBOLS } from '../game/pieces';
+import { Move, PIECE_NAMES, PIECE_VALUE, PROMOTION_CHOICES, PieceType } from '../game/pieces';
 import { formatMs, TIME_CONTROLS } from '../game/timers';
 import { chooseComputerMove } from '../game/computerPlayer';
 import { canPlayerMove, confirmResignRequest, createResignRequest, createSession, GameSession, MoveActor, OpponentTurnScheduler, playSessionMove, ResignRequest, tickSession } from '../game/opponentFlow';
@@ -18,6 +21,8 @@ import { authService } from '../services/auth/AuthService';
 import { soundService } from '../services/sound/SoundService';
 import { GameResult, RatingChange, ratingService } from '../services/rating/RatingService';
 import { theme } from '../styles/theme';
+import { progressionStore } from '../progression/useProgression';
+import type { AwardResult } from '../progression/ProgressionStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Game'>;
 
@@ -42,6 +47,7 @@ function afterMoveSound(prev: GameState, next: GameState) {
 }
 
 export function GameScreen({ route, navigation }: Props) {
+  const { pieces: pieceSet } = useAppearance();
   const mode = route.params.mode;
   const match = route.params.mode === 'multiplayer' ? route.params.match : undefined;
   const computerDifficulty = route.params.mode === 'local' ? route.params.computerDifficulty : undefined;
@@ -59,6 +65,10 @@ export function GameScreen({ route, navigation }: Props) {
   const [resignRequest, setResignRequest] = useState<ResignRequest | null>(null);
   const adRecorded = useRef(false);
   const ratingRecorded = useRef(false);
+  const practiceRecorded = useRef(false);
+  const gameNumber = useRef(0);
+  const [practiceAward, setPracticeAward] = useState<AwardResult | null>(null);
+  const [savingPractice, setSavingPractice] = useState(false);
   const moves = useMemo(() => state.selected ? legalMoves(state.board, state.selected.row, state.selected.col, { enPassantTarget: state.enPassant }) : [], [state]);
   const inputLocked = !canPlayerMove(state, playerColor);
 
@@ -118,8 +128,17 @@ export function GameScreen({ route, navigation }: Props) {
     return () => scheduler.cancel();
   }, [computerDifficulty, isFocused, mode, play, state]);
 
+  async function savePracticeResult() {
+    if (mode !== 'local' || state.status === 'active') return;
+    const number = gameNumber.current;
+    setSavingPractice(true);
+    const result = await progressionStore.record({ kind: 'game', id: `${route.key}:${number}`, mode: computerDifficulty ? 'computer' : 'local', status: state.status, plyCount: state.history.length, won: state.winner === 'white' });
+    if (gameNumber.current === number) { setPracticeAward(result); setSavingPractice(false); }
+  }
+
   useEffect(() => {
     if (state.status === 'active') return;
+    if (mode === 'local' && !practiceRecorded.current) { practiceRecorded.current = true; void savePracticeResult(); }
     setPendingPromotion(null);
     setResignRequest(null);
     if (!adRecorded.current) { adRecorded.current = true; void adService.recordCompletedGame(); }
@@ -142,6 +161,10 @@ export function GameScreen({ route, navigation }: Props) {
     gameGeneration.current++;
     adRecorded.current = false;
     ratingRecorded.current = false;
+    practiceRecorded.current = false;
+    gameNumber.current++;
+    setPracticeAward(null);
+    setSavingPractice(false);
     setRatingChange(null);
     setPendingPromotion(null);
     setResignRequest(null);
@@ -206,12 +229,16 @@ export function GameScreen({ route, navigation }: Props) {
   const thinking = state.status === 'active' && inputLocked;
 
   return <Screen style={styles.screen}>
+    <ScrollView contentContainerStyle={styles.content}>
     <View style={styles.header}>
       <Text style={styles.eyebrow}>{computerDifficulty ? 'YOU PLAY WHITE' : mode === 'local' ? 'PASS AND PLAY' : `MOCK MATCH · YOU PLAY ${playerColor?.toUpperCase()}`}</Text>
       <Text style={styles.title}>{title}</Text>
       <View style={[styles.statusPill, state.status === 'active' ? (inCheck ? styles.statusCheck : styles.statusActive) : (isDraw ? styles.statusDraw : styles.statusOver)]}>
         <Text style={styles.statusText}>{thinking ? computerDifficulty ? 'Computer thinking…' : 'Mock opponent thinking…' : statusMessage(state)}</Text>
       </View>
+      {practiceAward?.saved && <Text accessibilityLiveRegion="polite" style={styles.ratingGain}>{practiceAward.awarded > 0 ? `+${practiceAward.awarded} practice XP · Saved on this device` : state.history.length < 6 ? 'Practice XP needs at least 6 moves in a finished game.' : 'Practice result saved.'}</Text>}
+      {savingPractice && <Text style={styles.confirmCopy}>Saving practice XP…</Text>}
+      {practiceAward && !practiceAward.saved && <><Text style={styles.ratingLoss}>Practice XP could not be saved.</Text><AppButton title="Retry saving XP" secondary disabled={savingPractice} onPress={() => { void savePracticeResult(); }} /></>}
       {ratingChange && <Text style={ratingChange.change >= 0 ? styles.ratingGain : styles.ratingLoss}>Demo rating {ratingChange.before} → {ratingChange.after} ({ratingChange.change >= 0 ? '+' : ''}{ratingChange.change})</Text>}
     </View>
 
@@ -226,32 +253,16 @@ export function GameScreen({ route, navigation }: Props) {
       </View>
     </View>
 
-    <View style={styles.board}>
-      {state.board.map((row, rowIndex) => row.map((piece, colIndex) => {
-        const isMove = moves.some(m => m.row === rowIndex && m.col === colIndex);
-        const isShift = moves.some(m => m.row === rowIndex && m.col === colIndex && m.shift);
-        const label = `${algebraic({ row: rowIndex, col: colIndex })}${piece ? `, ${piece.color} ${PIECE_NAMES[piece.type]}` : ', empty'}`;
-        return <Pressable
-          key={`${rowIndex}-${colIndex}`}
-          onPress={() => tap(rowIndex, colIndex)}
-          accessibilityRole="button"
-          accessibilityLabel={label}
-          style={[styles.square, (rowIndex + colIndex) % 2 ? styles.dark : styles.light, sameSquare(state.selected, { row: rowIndex, col: colIndex }) && styles.selected, isMove && styles.move, isShift && styles.shift]}
-        >
-          {isMove && !piece && <View style={styles.dot} />}
-          <Text style={[styles.piece, piece?.color === 'black' && styles.blackPiece, piece?.type === 'S' && styles.shifter]}>{piece ? SYMBOLS[piece.type] : ''}</Text>
-        </Pressable>;
-      }))}
-    </View>
+    <ChessBoard board={state.board} selected={state.selected ?? null} moves={moves} onSquarePress={tap} disabled={inputLocked || !!pendingPromotion || state.status !== 'active'} />
 
     <View style={styles.capturedRow}>
       <View style={styles.capturedGroup}>
         <Text style={styles.capturedLabel}>White captured</Text>
-        <Text style={styles.capturedIcons}>{capturedByWhite.map((p, i) => <Text key={i}>{SYMBOLS[p.type]} </Text>)}{materialEdge > 0 && <Text style={styles.edge}> +{materialEdge}</Text>}</Text>
+        <View style={styles.capturedIcons}>{capturedByWhite.map((p, i) => <PieceView key={i} type={p.type} color={p.color} set={pieceSet} size={24} label />)}{materialEdge > 0 && <Text style={styles.edge}> +{materialEdge}</Text>}</View>
       </View>
       <View style={styles.capturedGroup}>
         <Text style={styles.capturedLabel}>Black captured</Text>
-        <Text style={styles.capturedIcons}>{capturedByBlack.map((p, i) => <Text key={i}>{SYMBOLS[p.type]} </Text>)}{materialEdge < 0 && <Text style={styles.edge}> +{-materialEdge}</Text>}</Text>
+        <View style={styles.capturedIcons}>{capturedByBlack.map((p, i) => <PieceView key={i} type={p.type} color={p.color} set={pieceSet} size={24} label />)}{materialEdge < 0 && <Text style={styles.edge}> +{-materialEdge}</Text>}</View>
       </View>
     </View>
 
@@ -282,7 +293,7 @@ export function GameScreen({ route, navigation }: Props) {
           <View style={styles.promoOptions}>
             {PROMOTION_CHOICES.map(type => (
               <Pressable key={type} accessibilityRole="button" accessibilityLabel={`Promote to ${PIECE_NAMES[type]}`} onPress={() => choosePromotion(type)} style={styles.promoOption}>
-                <Text style={[styles.promoSymbol, type === 'S' && styles.shifter]}>{SYMBOLS[type]}</Text>
+                <View style={styles.promoSymbol}><PieceView type={type} color={state.turn} set={pieceSet} size={42} /></View>
                 <Text style={styles.promoName}>{PIECE_NAMES[type]}</Text>
               </Pressable>
             ))}
@@ -290,10 +301,12 @@ export function GameScreen({ route, navigation }: Props) {
         </View>
       </View>
     </Modal>
+    </ScrollView>
   </Screen>;
 }
 
 const styles = StyleSheet.create({
+  content: { paddingBottom: 24, width: '100%', maxWidth: 680, alignSelf: 'center' },
   screen: { paddingHorizontal: theme.space(4) },
   header: { marginBottom: 10, alignItems: 'center' },
   eyebrow: { color: theme.colors.cyan, fontSize: 11, fontWeight: '900', letterSpacing: 1.8 },
@@ -312,19 +325,10 @@ const styles = StyleSheet.create({
   clockLabel: { color: theme.colors.textFaint, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   clockValue: { color: theme.colors.text, fontWeight: '900', fontSize: 20, marginTop: 2, fontVariant: ['tabular-nums'] },
   clockLow: { color: theme.colors.danger },
-  board: { width: '100%', aspectRatio: 10 / 8, flexDirection: 'row', flexWrap: 'wrap', borderRadius: theme.radius.md, overflow: 'hidden', borderWidth: 3, borderColor: theme.colors.boardBorder },
-  square: { width: `${100 / COLS}%`, height: `${100 / ROWS}%`, alignItems: 'center', justifyContent: 'center' },
-  light: { backgroundColor: theme.colors.boardLight }, dark: { backgroundColor: theme.colors.boardDark },
-  selected: { borderWidth: 3, borderColor: theme.colors.gold }, move: { borderWidth: 2, borderColor: '#2f6b46' },
-  shift: { borderColor: theme.colors.cyan, shadowColor: theme.colors.cyan, shadowOpacity: 1, shadowRadius: 6 },
-  dot: { position: 'absolute', width: '28%', height: '28%', borderRadius: 99, backgroundColor: '#0006' },
-  piece: { fontSize: 24, color: '#fffaf0', fontWeight: '900' },
-  blackPiece: { color: '#211913' },
-  shifter: { color: '#071018', backgroundColor: theme.colors.cyan, borderRadius: 14, paddingHorizontal: 7, overflow: 'hidden' },
   capturedRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   capturedGroup: { flex: 1, backgroundColor: theme.colors.surface, borderRadius: theme.radius.sm, padding: 8, minHeight: 44 },
   capturedLabel: { color: theme.colors.textFaint, fontSize: 10, fontWeight: '800', marginBottom: 2 },
-  capturedIcons: { color: theme.colors.text, fontSize: 16 },
+  capturedIcons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   edge: { color: theme.colors.success, fontWeight: '900', fontSize: 13 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 10 },
   subhead: { color: theme.colors.text, fontWeight: '900', fontSize: 16, marginTop: 10, marginBottom: 4 },
@@ -334,8 +338,8 @@ const styles = StyleSheet.create({
   promoCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 20, borderWidth: 1, borderColor: theme.colors.border },
   promoTitle: { color: theme.colors.text, fontWeight: '900', fontSize: 18, textAlign: 'center', marginBottom: 14 },
   confirmCopy: { color: theme.colors.textDim, textAlign: 'center', marginBottom: 10 },
-  promoOptions: { flexDirection: 'row', justifyContent: 'space-between' },
-  promoOption: { alignItems: 'center', flex: 1, paddingVertical: 8 },
-  promoSymbol: { fontSize: 30, color: '#fffaf0', backgroundColor: theme.colors.surfaceAlt, width: 52, height: 52, borderRadius: 14, textAlign: 'center', textAlignVertical: 'center', overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border },
+  promoOptions: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8 },
+  promoOption: { alignItems: 'center', minWidth: 56, paddingVertical: 8 },
+  promoSymbol: { backgroundColor: '#c7b9a1', width: 52, height: 52, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   promoName: { color: theme.colors.textDim, fontSize: 11, marginTop: 6, fontWeight: '700' },
 });

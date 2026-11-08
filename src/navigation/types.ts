@@ -8,6 +8,7 @@ export type RootStackParamList = {
   Home: undefined;
   Multiplayer: undefined;
   Game: { mode: 'local'; computerDifficulty?: ComputerDifficulty } | { mode: 'multiplayer'; match: Match };
+  OnlineGame: { matchId: string };
   DailyPuzzle: undefined;
   Rules: undefined;
   Settings: undefined;

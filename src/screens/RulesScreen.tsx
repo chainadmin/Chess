@@ -9,8 +9,8 @@ export function RulesScreen() {
       <Text style={styles.copy}>ShiftChess is played on a 10 columns × 8 rows board. Each back rank starts: R N S B Q K B S N R, with 10 pawns per side.</Text>
 
       <View style={styles.card}>
-        <Text style={styles.heading}>The Shifter (S)</Text>
-        <Text style={styles.copy}>The Shifter may move like a bishop any number of squares diagonally, capturing along the way. It cannot jump over pieces.</Text>
+        <Text style={styles.heading}>The Lancer (S in move notation)</Text>
+        <Text style={styles.copy}>The Lancer may move like a bishop any number of squares diagonally, capturing along the way. It cannot jump over pieces.</Text>
         <Text style={styles.copy}>It may also shift exactly one square orthogonally — up, down, left, or right — and capture on that step too.</Text>
         <Text style={styles.copy}>It is not a queen: it cannot slide more than one square orthogonally. It is not a king: diagonal movement is only legal along a full bishop path.</Text>
       </View>
@@ -19,14 +19,14 @@ export function RulesScreen() {
         <Text style={styles.heading}>Standard rules that still apply</Text>
         <Text style={styles.copy}>• Castling: an unmoved king on its starting square and an unmoved corner rook may castle if the squares between them are empty and the king doesn't pass through or land on an attacked square.</Text>
         <Text style={styles.copy}>• En passant: a pawn that advances two squares can be captured in passing by an enemy pawn on the very next move.</Text>
-        <Text style={styles.copy}>• Promotion: a pawn reaching the last rank promotes to a Queen, Rook, Bishop, Knight, or Shifter — your choice.</Text>
+        <Text style={styles.copy}>• Promotion: a pawn reaching the last rank promotes to a Queen, Rook, Bishop, Knight, or Lancer — your choice.</Text>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.heading}>How games end</Text>
         <Text style={styles.copy}>• Checkmate or resignation ends the game immediately.</Text>
         <Text style={styles.copy}>• Stalemate, the 50-move rule, threefold repetition, and insufficient material are all draws.</Text>
-        <Text style={styles.copy}>• A king and Shifter can checkmate, so they are not insufficient material.</Text>
+        <Text style={styles.copy}>• A king and Lancer can checkmate, so they are not insufficient material.</Text>
         <Text style={styles.copy}>• In timed games, running out of the clock loses on time.</Text>
       </View>
     </ScrollView>

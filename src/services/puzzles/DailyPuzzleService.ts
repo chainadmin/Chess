@@ -59,7 +59,7 @@ const knightForkPuzzle: Template = (random) => {
   return { board, solution: { from, to }, title: 'Knight Vision', prompt: 'White to move — capture the black queen in one move.', difficulty: 'Easy' };
 };
 
-// The Shifter's bishop-style diagonal reach, unblocked, snipes a loose rook.
+// The Lancer's bishop-style diagonal reach, unblocked, snipes a loose rook.
 const shifterDiagonalPuzzle: Template = (random) => {
   const board = emptyBoard();
   board[7][9] = { type: 'K', color: 'white' };
@@ -69,10 +69,10 @@ const shifterDiagonalPuzzle: Template = (random) => {
   const to: Square = { row: from.row - distance, col: from.col + distance };
   board[from.row][from.col] = { type: 'S', color: 'white' };
   board[to.row][to.col] = { type: 'R', color: 'black' };
-  return { board, solution: { from, to }, title: "Shifter's Reach", prompt: 'White to move — the Shifter can slide like a bishop. Capture the rook in one move.', difficulty: 'Easy' };
+  return { board, solution: { from, to }, title: "Lancer's Reach", prompt: 'White to move — the Lancer can slide like a bishop. Capture the rook in one move.', difficulty: 'Easy' };
 };
 
-// The Shifter's unique one-square orthogonal capture claims a rook sitting right next to it.
+// The Lancer's unique one-square orthogonal capture claims a rook sitting right next to it.
 const shifterShiftPuzzle: Template = (random) => {
   const board = emptyBoard();
   board[7][9] = { type: 'K', color: 'white' };
@@ -83,7 +83,7 @@ const shifterShiftPuzzle: Template = (random) => {
   const to: Square = { row: from.row + dir.row, col: from.col + dir.col };
   board[from.row][from.col] = { type: 'S', color: 'white' };
   board[to.row][to.col] = { type: 'R', color: 'black' };
-  return { board, solution: { from, to }, title: 'Point-Blank Shift', prompt: "White to move — the Shifter can also step one square orthogonally. Capture the rook in one move.", difficulty: 'Easy' };
+  return { board, solution: { from, to }, title: 'Point-Blank Shift', prompt: "White to move — the Lancer can also step one square orthogonally. Capture the rook in one move.", difficulty: 'Easy' };
 };
 
 // A back-rank mate in one: the black king is cornered and boxed in by its own pawns,
