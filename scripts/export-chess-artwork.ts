@@ -2,12 +2,16 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { getPieceSvg } from '../src/appearance/pieceArtwork';
 import { BOARD_THEMES, PIECE_SETS, PIECE_ORDER, BoardThemeId, PieceSetId } from '../src/appearance/catalog';
 import type { PieceType } from '../src/game/pieces';
+import { isRichPieceSet } from '../src/appearance/richPieceArtwork';
+
+// Raster collections have their own source atlases and preview exporter.
+const vectorSets = (Object.keys(PIECE_SETS) as PieceSetId[]).filter(set => !isRichPieceSet(set));
 
 const inner = (svg: string) => svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
 const cardWidth = 560, cardHeight = 512, gap = 32;
 const svg: string[] = ['<svg xmlns="http://www.w3.org/2000/svg" width="1216" height="1234" viewBox="0 0 1216 1234">', '<rect width="1216" height="1234" fill="#15121e"/>', '<g font-family="sans-serif" fill="#f7ead2"><text x="32" y="52" font-size="32" font-weight="bold">ShiftChess · Four ways to play</text><text x="32" y="85" font-size="18" fill="#cdbfe0">Mix any board with any piece set in Settings. All sets include the Lancer.</text></g>'];
 const backRank: PieceType[] = ['R', 'N', 'S', 'B', 'Q', 'K', 'B', 'S', 'N', 'R'];
-(Object.keys(PIECE_SETS) as PieceSetId[]).forEach((set, i) => {
+vectorSets.forEach((set, i) => {
   const boardId = (Object.keys(BOARD_THEMES) as BoardThemeId[])[i];
   const board = BOARD_THEMES[boardId];
   const x = 32 + i % 2 * (cardWidth + gap), y = 116 + Math.floor(i / 2) * (cardHeight + gap);
@@ -23,7 +27,7 @@ svg.push('<text x="32" y="1215" font-family="sans-serif" font-size="15" fill="#c
 mkdirSync('assets/chess', { recursive: true });
 writeFileSync('assets/chess/appearance-preview.svg', svg.join(''));
 // Export editable, sprite-sheet-ready sources from the runtime artwork.
-for (const set of Object.keys(PIECE_SETS) as PieceSetId[]) {
+for (const set of vectorSets) {
   const cells: string[] = [];
   for (const [row, color] of (['white', 'black'] as const).entries()) for (const [col, type] of PIECE_ORDER.entries()) {
     const piece = getPieceSvg(set, type, color);
@@ -40,7 +44,7 @@ const preview = [
   '<rect width="1420" height="1058" fill="#15121e"/>',
   '<g font-family="sans-serif" fill="#f7ead2"><text x="32" y="49" font-size="31" font-weight="bold">ShiftChess · Four distinct piece collections</text><text x="32" y="81" font-size="18" fill="#cdbfe0">Actual game artwork. Every set includes light and dark versions of all seven pieces.</text></g>',
 ];
-(Object.keys(PIECE_SETS) as PieceSetId[]).forEach((set, i) => {
+vectorSets.forEach((set, i) => {
   const x = 32 + i % 2 * 694, y = 108 + Math.floor(i / 2) * 466;
   preview.push(`<g transform="translate(${x} ${y})"><rect width="662" height="438" rx="16" fill="#241d33"/><text x="24" y="39" font-family="sans-serif" font-size="25" font-weight="bold" fill="#f7ead2">${PIECE_SETS[set].name}</text><text x="24" y="67" font-family="sans-serif" font-size="17" fill="#cdbfe0">${PIECE_SETS[set].description}</text>`);
   for (const [row, color] of (['white', 'black'] as const).entries()) {

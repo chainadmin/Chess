@@ -11,6 +11,9 @@ export const PIECE_SETS = {
   club: { name: 'Carved Wood', description: 'Maple and walnut with carved grain' },
   modern: { name: 'Forged Metal', description: 'Silver and gunmetal with crisp facets' },
   tournament: { name: 'Royal Lacquer', description: 'Ivory and royal blue with gold inlay' },
+  imperial: { name: 'Imperial Ivory', description: 'Sculpted ivory and obsidian, finished with antique gold' },
+  jade: { name: 'Jade Dynasty', description: 'Luminous celadon and deep emerald with brass accents' },
+  crystal: { name: 'Frost Crystal', description: 'Faceted pearl and smoky sapphire with polished silver' },
 } as const;
 export type BoardThemeId = keyof typeof BOARD_THEMES;
 export type PieceSetId = keyof typeof PIECE_SETS;

@@ -5,9 +5,11 @@ import type { Color, PieceType } from '../game/pieces';
 import { PIECE_NAMES } from '../game/pieces';
 import type { PieceSetId } from '../appearance/catalog';
 import { getPieceSvg } from '../appearance/pieceArtwork';
+import { isRichPieceSet } from '../appearance/richPieceArtwork';
+import { RichPieceArtwork } from './RichPieceArtwork';
 
 type Props = { type: PieceType; color: Color; set: PieceSetId; size?: number; label?: boolean };
-/** The same vector artwork is used on boards, in previews, captures and promotion. */
+/** All boards, previews, captures and promotion share the same selected artwork. */
 export const PieceView = memo(function PieceView({ type, color, set, size, label = false }: Props) {
   return <View
     pointerEvents="none"
@@ -17,5 +19,7 @@ export const PieceView = memo(function PieceView({ type, color, set, size, label
     accessibilityElementsHidden={!label}
     importantForAccessibility={label ? 'yes' : 'no-hide-descendants'}
     style={{ width: size ?? '94%', height: size ?? '94%', alignItems: 'center', justifyContent: 'center' }}
-  ><SvgXml xml={getPieceSvg(set, type, color)} width="100%" height="100%" /></View>;
+  >{isRichPieceSet(set)
+    ? <RichPieceArtwork set={set} type={type} color={color} />
+    : <SvgXml xml={getPieceSvg(set, type, color)} width="100%" height="100%" />}</View>;
 });

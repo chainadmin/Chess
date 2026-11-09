@@ -5,9 +5,14 @@ export type CosmeticAccess = { kind: 'starter' } | { kind: 'level'; level: numbe
 export const BOARD_ACCESS: Record<BoardThemeId, CosmeticAccess> = {
   walnut: { kind: 'starter' }, forest: { kind: 'level', level: 2 }, sandstone: { kind: 'level', level: 4 }, slate: { kind: 'level', level: 6 },
 };
+/** Initial playtest tuning. New sets are earned cosmetics, never purchases. */
+export const RICH_PIECE_UNLOCK_LEVELS = { jade: 5, crystal: 10 } as const;
 export const PIECE_ACCESS: Record<PieceSetId, CosmeticAccess> = {
   classic: { kind: 'starter' }, club: { kind: 'level', level: 3 },
   modern: { kind: 'premium', product: 'modern' }, tournament: { kind: 'premium', product: 'tournament' },
+  imperial: { kind: 'starter' },
+  jade: { kind: 'level', level: RICH_PIECE_UNLOCK_LEVELS.jade },
+  crystal: { kind: 'level', level: RICH_PIECE_UNLOCK_LEVELS.crystal },
 };
 export function canUseCosmetic(access: CosmeticAccess, level: number, entitlements: Entitlements): boolean {
   if (access.kind === 'starter') return true;

@@ -4,8 +4,10 @@ import { readFileSync } from 'node:fs';
 import { APPEARANCE_KEY, AppearanceStore, type PreferenceStorage } from '../../appearance/AppearanceStore';
 import { BOARD_THEMES, PIECE_SETS, PIECE_ORDER, DEFAULT_APPEARANCE, parseAppearance, type PieceSetId } from '../../appearance/catalog';
 import { getPieceSvg } from '../../appearance/pieceArtwork';
+import { isRichPieceSet } from '../../appearance/richPieceArtwork';
 
-const sets = Object.keys(PIECE_SETS) as PieceSetId[];
+const allSets = Object.keys(PIECE_SETS) as PieceSetId[];
+const sets = allSets.filter(set => !isRichPieceSet(set));
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -23,9 +25,10 @@ function memoryStorage(initial: string | null = null) {
 }
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 
-test('appearance catalog contains four distinct boards, four sets and all seven piece types', () => {
+test('appearance catalog contains four distinct boards, seven sets and all seven piece types', () => {
   assert.equal(Object.keys(BOARD_THEMES).length, 4);
   assert.equal(sets.length, 4);
+  assert.equal(allSets.length, 7);
   assert.deepEqual(PIECE_ORDER, ['K', 'Q', 'R', 'B', 'N', 'P', 'S']);
   assert.equal(new Set(Object.values(BOARD_THEMES).map(b => `${b.light}/${b.dark}`)).size, 4);
   for (const board of Object.values(BOARD_THEMES)) {
@@ -40,7 +43,7 @@ test('missing, malformed and invalid saved values fall back independently withou
   }
   assert.deepEqual(parseAppearance('{"board":"forest","pieces":"future"}'), { board: 'forest', pieces: 'classic' });
   assert.deepEqual(parseAppearance('{"board":[],"pieces":"modern"}'), { board: 'walnut', pieces: 'modern' });
-  for (const board of Object.keys(BOARD_THEMES)) for (const pieces of sets) {
+  for (const board of Object.keys(BOARD_THEMES)) for (const pieces of allSets) {
     assert.deepEqual(parseAppearance(JSON.stringify({ board, pieces, ignored: true })), { board, pieces });
   }
 });
