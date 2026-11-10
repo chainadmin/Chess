@@ -1,6 +1,7 @@
-# Local free human multiplayer transport
+# Game server transport
 
-Run from the repository root with `node --import tsx server/index.ts`.
+Production runs `game/index.ts` (account tokens, rated results, Postgres). See ../docs/LAUNCH.md for deployment.
+The guest-only development mode below is what `npm run online:server` starts (`index.ts`).
 Defaults: `127.0.0.1:8787`, browser origins `http://localhost:8081` and
 `http://127.0.0.1:8081`. Set `SHIFTCHESS_HOST`, `SHIFTCHESS_PORT`, and
 `SHIFTCHESS_ORIGINS` (comma-separated exact HTTP(S) origins) if needed.

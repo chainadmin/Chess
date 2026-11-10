@@ -1,11 +1,20 @@
 import { useSyncExternalStore } from 'react';
-import { ClientState, OnlineClient, onlineServerUrl } from './OnlineClient';
+import { GAME_URL } from '../services/api/ApiClient';
+import { authService } from '../services/auth/AuthService';
+import { ClientState, OnlineClient } from './OnlineClient';
 
-declare const process: { env: { EXPO_PUBLIC_ONLINE_URL?: string } };
-// Expo replaces this exact property access at bundle time. No default server,
-// no simulated player, no entitlement check and no hidden network fallback.
-const url = onlineServerUrl(process.env.EXPO_PUBLIC_ONLINE_URL, typeof __DEV__ !== 'undefined' && __DEV__);
-export const onlineClient = url ? new OnlineClient(url) : null;
+// No default server, no simulated player, no entitlement check and no hidden network fallback.
+// Online play uses the signed-in account; guests are asked to log in.
+export const onlineClient = GAME_URL ? new OnlineClient(GAME_URL, {
+  getToken: async () => {
+    const user = await authService.currentUser();
+    return user && !user.guest ? authService.token() : null;
+  },
+  longPollMs: 15_000,
+}) : null;
+// A different person signing in must never inherit the previous player's queue or game view.
+authService.subscribe(() => onlineClient?.reset());
+
 const unavailable: ClientState = { online: null, connection: 'idle', pending: false, error: null, receivedAt: 0 };
 const noop = () => () => undefined;
 export function useOnlineState() {

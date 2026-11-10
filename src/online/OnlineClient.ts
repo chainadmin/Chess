@@ -13,7 +13,13 @@ export class OnlineTransportError extends Error {
   constructor(readonly code: string, message: string, readonly status = 409, readonly retryAfterMs = 0) { super(message); }
 }
 
-type Options = { fetch?: typeof fetch; now?: () => number; pollMs?: number; timeoutMs?: number };
+type Options = {
+  fetch?: typeof fetch; now?: () => number; pollMs?: number; timeoutMs?: number;
+  /** Production: use the signed-in account's token instead of creating a guest session. */
+  getToken?: () => Promise<string | null>;
+  /** During an active match, hold a sync open until the position changes (0 = plain polling). */
+  longPollMs?: number;
+};
 
 /** Reject accidental token delivery to a URL with credentials, paths or redirects.
  * Plain HTTP is for loopback/LAN development only. Public endpoints require TLS. */
@@ -59,12 +65,26 @@ export class OnlineClient {
   private unconfirmed?: OnlineCommand;
   private stopped = false;
   private retryAfterMs = 0;
+  private readonly getToken?: () => Promise<string | null>;
+  private readonly longPollMs: number;
+  private longPoll?: AbortController;
+  private pollEpoch = 0;
 
   constructor(readonly url: string, options: Options = {}) {
-    this.fetcher = options.fetch ?? fetch;
+    // Call the global through a wrapper: browsers throw "Illegal invocation" for a detached fetch.
+    this.fetcher = options.fetch ?? ((input, init) => fetch(input, init));
     this.now = options.now ?? (() => performance.now());
     this.pollMs = options.pollMs ?? 750;
     this.timeoutMs = options.timeoutMs ?? 6000;
+    this.getToken = options.getToken;
+    this.longPollMs = options.longPollMs ?? 0;
+  }
+
+  /** Call after login/logout: forget the old identity and any local view of its games. */
+  reset() {
+    this.clearTimer();
+    this.token = undefined; this.ticket = undefined; this.unconfirmed = undefined; this.retryAfterMs = 0;
+    this.update({ online: null, connection: 'idle', pending: false, error: null, receivedAt: 0 });
   }
 
   getSnapshot = (): ClientState => this.value;
@@ -78,17 +98,59 @@ export class OnlineClient {
     this.listeners.forEach(listener => listener());
   }
   private id(prefix: string) { return `${prefix}-${++this.sequence}`; }
-  private clearTimer() { if (this.timer) clearTimeout(this.timer); this.timer = undefined; }
+  private clearTimer() {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = undefined;
+    if (this.longPoll) { this.pollEpoch++; this.longPoll.abort(); this.longPoll = undefined; }
+  }
   private schedule() {
     this.clearTimer();
     if (this.stopped || !this.listeners.size || !this.token || this.value.connection === 'expired') return;
     const online = this.value.online;
     if (!this.unconfirmed && this.value.connection !== 'reconnecting' && online?.status !== 'queued' && !(online?.status === 'matched' && online.match.game.status === 'active')) return;
+    if (this.longPollMs > 0 && !this.unconfirmed && !this.pendingCount && this.value.connection === 'connected' &&
+        !this.retryAfterMs && online?.status === 'matched' && online.match.game.status === 'active') {
+      this.startLongPoll(online.match.matchId, online.match.revision);
+      return;
+    }
     const delay = Math.max(this.retryAfterMs, this.value.error && this.value.connection === 'reconnecting' ? Math.max(this.pollMs, 3000) : this.pollMs);
     this.timer = setTimeout(() => { this.timer = undefined; void this.sync().catch(() => undefined); }, delay);
   }
+  /** Waits on the server for the next revision; any user action aborts it first. */
+  private startLongPoll(matchId: string, revision: number) {
+    const epoch = ++this.pollEpoch;
+    const controller = new AbortController();
+    this.longPoll = controller;
+    const body: OnlineCommand = { version: 1, type: 'sync', matchId, waitForRevision: revision };
+    this.post('/command', body, true, { signal: controller.signal, timeoutMs: this.longPollMs + 8000 })
+      .then(data => {
+        if (epoch !== this.pollEpoch || this.stopped) return;
+        this.longPoll = undefined;
+        this.accept(data);
+        this.schedule();
+      })
+      .catch(error => {
+        if (epoch !== this.pollEpoch || this.stopped) return;
+        this.longPoll = undefined;
+        // Hand the failure to the ordinary, serialized sync path after a short pause.
+        this.retryAfterMs = error instanceof OnlineTransportError ? error.retryAfterMs : 0;
+        this.timer = setTimeout(() => { this.timer = undefined; void this.sync().catch(() => undefined); }, Math.max(this.pollMs, this.retryAfterMs));
+      });
+  }
+
   /** Test/teardown only: stopping observation does not pause a server game. */
   dispose() { this.stopped = true; this.clearTimer(); this.listeners.clear(); }
+
+  private accept(data: unknown): OnlineState {
+    const state = data as OnlineState;
+    if (!state || state.version !== 1 || !Number.isFinite(state.serverNow) ||
+        !['idle', 'queued', 'matched'].includes(state.status)) throw new Error('Invalid server response.');
+    this.unconfirmed = undefined;
+    this.retryAfterMs = 0;
+    this.update({ online: state, connection: 'connected', error: null, receivedAt: this.now() });
+    if (state.status !== 'queued') this.ticket = undefined;
+    return state;
+  }
 
   private enqueue<T>(work: () => Promise<T>, userAction = false): Promise<T> {
     if (userAction) { this.pendingCount++; this.update({ pending: true }); }
@@ -101,9 +163,10 @@ export class OnlineClient {
     });
   }
 
-  private async post(path: string, body: unknown, authenticated: boolean): Promise<unknown> {
+  private async post(path: string, body: unknown, authenticated: boolean, options: { signal?: AbortSignal; timeoutMs?: number } = {}): Promise<unknown> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? this.timeoutMs);
+    options.signal?.addEventListener('abort', () => controller.abort());
     try {
       const response = await this.fetcher(`${this.url}${path}`, {
         method: 'POST', redirect: 'error', credentials: 'omit', signal: controller.signal,
@@ -119,7 +182,9 @@ export class OnlineClient {
   private fail(error: unknown) {
     this.retryAfterMs = error instanceof OnlineTransportError ? error.retryAfterMs : 0;
     if (error instanceof OnlineTransportError && error.status !== 429 && (error.status < 500 || error.code === 'capacity')) {
-      this.update({ connection: error.code === 'unauthenticated' ? 'expired' : 'connected', error: error.message });
+      const expired = error.code === 'unauthenticated' || error.code === 'login_required';
+      if (expired) this.token = undefined;
+      this.update({ connection: expired ? 'expired' : 'connected', error: error.message });
     } else {
       this.update({ connection: 'reconnecting', error: 'Connection interrupted. Reconnecting safely; the server clock keeps running.' });
     }
@@ -128,6 +193,15 @@ export class OnlineClient {
   private async connect() {
     if (this.token) return;
     this.update({ connection: 'connecting', error: null });
+    if (this.getToken) {
+      try {
+        const token = await this.getToken();
+        if (!token) throw new OnlineTransportError('login_required', 'Log in or create a free account to play online.', 401);
+        this.token = token;
+        this.update({ connection: 'connected' });
+        return;
+      } catch (error) { this.fail(error); throw error; }
+    }
     try {
       const data = await this.post('/session', {}, false) as { token?: unknown };
       if (typeof data.token !== 'string' || !data.token) throw new Error('Invalid session response.');
@@ -138,14 +212,7 @@ export class OnlineClient {
 
   private async command(command: OnlineCommand): Promise<OnlineState> {
     try {
-      const data = await this.post('/command', command, true) as OnlineState;
-      if (!data || data.version !== 1 || !Number.isFinite(data.serverNow) ||
-          !['idle', 'queued', 'matched'].includes(data.status)) throw new Error('Invalid server response.');
-      this.unconfirmed = undefined;
-      this.retryAfterMs = 0;
-      this.update({ online: data, connection: 'connected', error: null, receivedAt: this.now() });
-      if (data.status !== 'queued') this.ticket = undefined;
-      return data;
+      return this.accept(await this.post('/command', command, true));
     } catch (error) {
       if (command.type === 'queue.join' && error instanceof OnlineTransportError && error.code === 'ticket_used') {
         // A lost join acknowledgement can outlive its queue lease. Never retry

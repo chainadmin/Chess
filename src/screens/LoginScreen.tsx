@@ -5,25 +5,34 @@ import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
 import { authService } from '../services/auth/AuthService';
+import { PRIVACY_URL } from '../services/api/ApiClient';
+import { Linking } from 'react-native';
 import { theme } from '../styles/theme';
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 export function LoginScreen({ navigation }: Props) {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const login = async () => { try { await authService.login(email, password); navigation.replace('Home'); } catch (e) { setError((e as Error).message); } };
+  const [busy, setBusy] = useState(false);
+  const login = async () => {
+    setBusy(true); setError('');
+    try { await authService.login(username, password); navigation.reset({ index: 0, routes: [{ name: 'Home' }] }); }
+    catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  };
   return <Screen>
     <Text style={styles.eyebrow}>WELCOME BACK</Text>
     <Text style={styles.title}>Login</Text>
     <View style={styles.form}>
-      <Text style={styles.label}>Email</Text>
-      <TextInput style={styles.input} placeholder="you@example.com" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" keyboardType="email-address" autoComplete="email" value={email} onChangeText={setEmail} />
+      <Text style={styles.label}>Username</Text>
+      <TextInput style={styles.input} placeholder="Your username" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} autoComplete="username" textContentType="username" value={username} onChangeText={setUsername} />
       <Text style={styles.label}>Password</Text>
-      <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password" value={password} onChangeText={setPassword} />
-      {!!error && <Text style={styles.error}>{error}</Text>}
+      <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password" textContentType="password" value={password} onChangeText={setPassword} onSubmitEditing={login} />
+      {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </View>
-    <AppButton title="Login" onPress={login} />
-    <AppButton title="Register instead" onPress={() => navigation.navigate('Register')} secondary />
+    <AppButton title={busy ? 'Logging in…' : 'Login'} onPress={login} disabled={busy} />
+    <AppButton title="Create an account instead" onPress={() => navigation.replace('Register')} secondary />
+    {PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
   </Screen>;
 }
 const styles = StyleSheet.create({
@@ -32,5 +41,6 @@ const styles = StyleSheet.create({
   form: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 16, borderWidth: 1, borderColor: theme.colors.borderSoft, marginBottom: 6 },
   label: { color: theme.colors.textFaint, fontSize: 12, fontWeight: '800', marginBottom: 6, marginTop: 8 },
   input: { backgroundColor: theme.colors.surfaceAlt, color: theme.colors.text, padding: 13, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border },
+  link: { color: theme.colors.textDim, textAlign: 'center', textDecorationLine: 'underline', marginTop: 14, fontSize: 13 },
   error: { color: theme.colors.danger, marginTop: 10, fontWeight: '700' },
 });

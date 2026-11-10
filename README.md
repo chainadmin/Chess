@@ -2,6 +2,8 @@
 
 ShiftChess is an Expo React Native / TypeScript mobile app for a 10×8 chess variant with a Lancer piece (internal notation `S`). It is structured so local play remains offline and pure game rules stay separate from UI, ads, auth, purchases, and multiplayer.
 
+> **Going live?** Follow [docs/LAUNCH.md](docs/LAUNCH.md): Railway servers, App Store build, in-app purchases, AdMob and privacy.
+
 ## Run with Expo Go
 
 ```bash
@@ -9,7 +11,7 @@ npm install
 npm start
 ```
 
-Scan the QR code with Expo Go, or run `npm run web` to try it in a browser. The app intentionally avoids native-only AdMob and IAP packages so it can run in Expo Go.
+Scan the QR code with Expo Go, or run `npm run web` to try it in a browser. AdMob and in-app purchases are native modules: they are skipped in Expo Go and on the web, and work in EAS development, TestFlight and store builds.
 
 ## Testing
 
@@ -24,14 +26,14 @@ The test suites (`src/game/__tests__` and `src/online/__tests__`) cover check/ch
 ## Implemented Screens
 
 - Welcome: logo/name, login, register, continue as guest.
-- Login/Register: local mock account flows with email format and password length validation.
+- Login/Register: username + password accounts on the ShiftChess accounts server, with a privacy policy link.
 - Home: current rating, Daily Puzzle, local pass-and-play, Easy/Medium/Hard computer games, Multiplayer, Rules, Settings.
 - Daily Puzzle: procedurally generates and stores today's and tomorrow's puzzles from a rotating set of tactical templates (knight fork, both Lancer capture styles, back-rank mate-in-one), rotates them by local date, tags each with a difficulty, and remembers completion.
-- Multiplayer: one free human 3+2 queue on a configured playtest server. No computer fallback, purchase check, or paid priority. A missing server is shown honestly rather than simulating an opponent.
-- Online Game: server-confirmed board and clocks, assigned-color ownership and orientation, move history, promotion, cancellation/reconnection handling, and confirmed resignation. Currently unrated temporary guests.
-- Rating: existing local demo Elo display from 0–3500. Real online games never write demo ratings.
+- Multiplayer: one free, rated human 3+2 queue. Guests are asked to create a free account. No computer fallback, purchase check, or paid priority.
+- Online Game: server-confirmed board and clocks, assigned-color ownership and orientation, move history, promotion, cancellation/reconnection handling, and confirmed resignation. Rated; results are saved to the player's account.
+- Rating & Leaderboard: online Elo rating (0–3500, starting at 1200) on Home, and a top-50 leaderboard.
 - Local Game: 10×8 board, turn/check indicator, clocks, captured pieces/material advantage, move history, promotion picker, resign, and local reset.
-- Settings: four board palettes and four complete piece collections with persistent local preferences, device-local practice XP/levels, earned cosmetic locks, premium previews, unavailable billing controls, an ad-placement preview, sound toggle (wired to real Web Audio beeps on web), account status, logout.
+- Settings: four board palettes and four complete piece collections with persistent local preferences, device-local practice XP/levels, earned cosmetic locks, premium previews, real Remove Ads / premium piece purchases and Restore, sound toggle (wired to real Web Audio beeps on web), account status, logout, account deletion, privacy policy.
 - Rules: 10×8 setup, Lancer movement, castling/en passant/promotion, and how games end.
 
 ## Board and piece collections
@@ -85,72 +87,32 @@ Home and Settings display the level and progress. Results are deduplicated by a 
 
 Both the Settings selector and runtime appearance resolver apply access policy. Legacy saved premium/locked selections fall back to Walnut/Classic without deleting the saved preference. Reaching a high practice level or editing old purchase flags never grants premium ownership. Tests cover reward boundaries, cap, duplicate/replayed results, concurrent writes, hydration, retry, corruption and access fallback.
 
-### Ads
+### Ads (Google AdMob)
 
-`src/services/ads/PreviewAdService.ts` is placement groundwork only. No ad SDK, ad request, impression, revenue or rewarded unlock is implemented. Normal builds show no automatic placeholder ads. Settings offers an explicit **Preview ad placement** button; the modal labels itself as a local test. Close and Android Back dismiss it.
+`src/services/ads/AdMobAdService.ts` shows an AdMob interstitial after every third finished local game, never during play or online games. Before any ad request it gathers Google UMP consent and, on iPhone, asks for App Tracking Transparency permission; players who decline still get non-personalized ads. Buying **Remove Ads** turns ads off entirely. Development builds and builds without configured ad unit IDs use Google's test ads. In Expo Go and on the web, the native SDK is missing and the app falls back to the old labelled placeholder (`PreviewAdService`).
 
-For local placement QA only, build with `EXPO_PUBLIC_AD_PREVIEW=true` to show this clearly marked preview after every third completed local game. The cadence writes are serialized; storage failure never blocks gameplay. No calls are made during active play. Rewarded-ad methods always return false, so a fake preview cannot claim a completed reward. Online-game ads are not wired until durable result settlement exists.
+### In-app purchases
 
-Production integration still needs a supported native ad SDK, consent/age/privacy flows, real load/show callbacks, failure handling, and verified ad-removal entitlements. Neither ads nor paid extras may gate online entry.
+`src/services/purchases/PurchaseService.ts` uses `expo-iap` (StoreKit 2 / Google Play Billing) for three non-consumables: `remove_ads`, `pieces_forged_metal` and `pieces_royal_lacquer` (`src/services/purchases/products.ts`). Every purchase is verified by the accounts server before it unlocks: offline JWS chain verification for Apple, the Play Developer API for Google. The transaction is only finished after verification. Guests can buy and restore on their device; signed-in purchases are also stored on the account. Web and Expo Go fail closed.
 
-### Purchases
+### Accounts
 
-`src/services/purchases/PurchaseService.ts` now fails closed. Remove Ads, premium purchase, and restore methods cannot simulate a purchase. Settings clearly disables these actions until billing exists, with no invented prices. The old `shiftchess.adsRemoved=true` mock flag is ignored and never becomes paid ownership.
+Players create an account with a **username and password** on the accounts server (`server/api`). Passwords are hashed with scrypt; sign-in tokens are random 256-bit values, stored hashed on the server and in the iOS Keychain / Android Keystore on the device (`expo-secure-store`). Settings offers log out, account deletion (required by the App Store) and a link to the privacy policy. Guests can still play everything offline. Online play requires an account.
 
-Before accepting payment, integrate supported store billing plus server-verified receipts and durable entitlement storage, product IDs/prices, restore/refund/revocation handling, and account linking. `NO_ENTITLEMENTS` is deliberately the only runtime entitlement source in this build; replace that boundary with the verified adapter when it is ready. Paid offerings are optional ad removal and cosmetic extras only, with no paid game advantages or online-play gate.
+### Online play and ratings
 
-### Sound
+Two Railway services share one Postgres database:
 
-`/src/services/sound/SoundService.ts` respects the Settings sound toggle. On web it synthesizes short move/capture/check/game-over beeps with the Web Audio API, so the toggle is meaningfully testable without shipping audio assets. On native it's currently a no-op placeholder — plug a real SDK (e.g. `expo-audio`) into `play()` for EAS/native builds without touching game logic.
+- **Accounts API** (`server/api`): register/login/logout, `/me`, leaderboard, purchase verification, account deletion, and the public `/privacy` and `/account-deletion` pages.
+- **Game server** (`server/game` + `server/httpServer.ts`): matchmaking and live 3+2 games. It verifies account tokens (cached for a minute so polling never waits on the database), long-polls so opponents' moves arrive immediately, and settles each finished game into Elo ratings in one transaction.
 
-### Auth
+The server owns legal moves, clocks and results; the earlier safeguards (request IDs, stale-revision checks, rate limits, exact-origin CORS, capacity limits) still apply. Behind Railway's proxy, rate limits use the client address the proxy forwards (`TRUST_PROXY_HOPS=1`).
 
-`/src/services/auth/AuthService.ts` provides local AsyncStorage mock auth. Passwords are never stored in plaintext — they're salted and hashed with a small dependency-free SHA-256 (`/src/services/auth/hash.ts`) before being written to storage. Register validates the email format and a minimum password length; login validates the hash locally; guest mode creates a guest profile. Local play is available to guests.
-
-The interface is ready to be replaced by backend/JWT auth later (with server-side hashing such as bcrypt/argon2).
-
-### Real online human playtest
-
-The app now uses `src/online/OnlineClient.ts` and a separate `OnlineGameScreen` for real network games. The prior mock multiplayer service remains only as an isolated demo/test fixture; the online lobby never calls it.
-
-Run two terminals:
-
-```bash
-# Terminal 1: in-memory authority and HTTP transport, loopback only by default
-npm run online:server
-
-# Terminal 2: Expo web app pointed at that server
-EXPO_PUBLIC_ONLINE_URL=http://127.0.0.1:8787 npm run web
-```
-
-Open `http://localhost:8081` in two separate browser contexts (for example, regular and private windows). Continue as Guest in each, choose **Online 3+2**, and **Find a free 3+2 game**. Both must use the same server. With only one player, the queue waits for another player; it never substitutes a bot. For a configured static web build, set the same environment variable when running `npx expo export --platform web` and serve `dist` on an allowed browser origin. The environment variable is build-time configuration, not a secret.
-
-For a native phone on a trusted LAN, follow [`server/README.md`](server/README.md), explicitly bind the development server to the LAN, and use its private LAN IP in an Expo development build. Public plaintext endpoints are rejected. A public service requires HTTPS, proper hosting and the production work below. This repository does **not** deploy or provision a public server.
-
-Safeguards implemented:
-
-- Server-issued temporary guest identities with unpredictable bearer tokens, unrelated to local mock accounts. Credentials remain only in memory and never go in URLs/logs.
-- A single FIFO 3+2 queue, no entitlements or purchases, and two different server identities per match. This is not proof of human identity or an anti-cheat system.
-- Server owns legal moves, turn ownership, clock debit, +2-second increment and terminal results. It rejects forged board/clock/identity fields, unsafe coordinates, stale revisions, wrong-turn moves and outsiders.
-- Request IDs make accepted moves/resignations safe to retry. Dropped acknowledgements are retried with the same ID, never applied twice. The client never optimistically changes the board or declares a timeout.
-- Cancellation handles a join already in flight. If a pairing beats cancellation, the match stays resumable. Queue leases expire after 30 seconds without renewal. A lost join acknowledgement recovered after expiry is reconciled to the server’s current state, without silently starting another search. A disconnected game continues on server time and ends on timeout.
-- Exact-origin browser CORS, JSON/body limits, independent authenticated-session request budgets, bounded anonymous/shared-IP traffic, connection limits and hard authority capacity limits. See the server README for operational bounds.
-- Opponent snapshots are polled every 750 ms while searching/playing. This is HTTP polling, not WebSockets. Client clock interpolation is display-only.
-
-Limitations before public release:
-
-- Everything is single-process, in-memory and unrated. Restarting the server loses sessions and games. Reloading/closing the app loses its guest credential; leaving a screen does not. Guest credentials expire after 24 hours. An already active match receives bounded same-match-only grace, capped at two hours after that expiry with up to 60 seconds to read/retry its final result; this never permits a new queue.
-- No verified accounts, durable match/recovery storage, rating settlement, engine-cheat detection, production abuse controls, TLS termination, multi-instance ownership or public hosting. Tombstones/receipts are hard-capped rather than evicted unsafely.
-- Production ads and cosmetic purchases remain separate future integrations. Neither may gate online entry. Online result settlement and ad cadence need persistent result IDs before reconnect-safe monetization is wired.
-- Native-device/network-interruption/accessibility testing is still required before release.
-
-### Ratings
-
-The existing Elo service is local demonstration data only, starts at 1200 and is bounded to 0–3500. Local play and the real guest online playtest do not affect it. A production rating system requires transactional server-side result settlement, authenticated players and persistent storage.
+**See [docs/LAUNCH.md](docs/LAUNCH.md)** for deploying to Railway, App Store setup, product IDs, AdMob and the App Privacy answers.
 
 ## Time Controls
 
-- Online Blitz 3+2: 3 minutes per player, +2 seconds after each accepted move. The only real online queue.
+- Online Blitz 3+2: 3 minutes per player, +2 seconds after each accepted move. The only online queue; rated.
 - Local Blitz 3+0: 3 minutes per player, no increment.
 - Legacy/demo Bullet 1+1: 1 minute per player, +1 second after each move.
 - Legacy/demo Rapid 10+0: 10 minutes per player, no increment.

@@ -12,4 +12,5 @@ export type RootStackParamList = {
   DailyPuzzle: undefined;
   Rules: undefined;
   Settings: undefined;
+  Leaderboard: undefined;
 };

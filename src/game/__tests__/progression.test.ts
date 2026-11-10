@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { applyProgressEvent, emptyProgress, levelForXP, MAX_XP, parseProgress, rewardFor, type ProgressEvent } from '../../progression/progression';
 import { PROGRESS_KEY, ProgressionStore } from '../../progression/ProgressionStore';
 import { availableAppearance, BOARD_ACCESS, canUseCosmetic, PIECE_ACCESS } from '../../progression/cosmetics';
-import { NO_ENTITLEMENTS, UnavailablePurchaseService } from '../../services/purchases/PurchaseService';
+import { NO_ENTITLEMENTS, UnavailablePurchaseService } from '../../services/purchases/billing';
 import { PreviewAdService } from '../../services/ads/PreviewAdService';
 import { STORAGE_KEYS } from '../../storage/keys';
 

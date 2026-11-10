@@ -18,7 +18,8 @@ export type OnlineMove = Pick<Move, 'from' | 'to' | 'promotion'>;
 export type OnlineCommand =
   | { version: 1; type: 'queue.join'; ticket: string }
   | { version: 1; type: 'queue.cancel'; ticket: string }
-  | { version: 1; type: 'sync'; ticket?: string; matchId?: string }
+  /** waitForRevision asks the server to hold the reply (long-poll) until the match changes. */
+  | { version: 1; type: 'sync'; ticket?: string; matchId?: string; waitForRevision?: number }
   | { version: 1; type: 'move'; requestId: string; matchId: string; expectedRevision: number; move: OnlineMove }
   | { version: 1; type: 'resign'; requestId: string; matchId: string; expectedRevision: number };
 
@@ -29,8 +30,8 @@ export type MatchSnapshot = {
   opponentName: string;
   queueId: typeof ONLINE_QUEUE_ID;
   timeControl: TimeControl;
-  /** Production rating storage and transactional result settlement are not connected. */
-  rated: false;
+  /** True when the server settles results into account ratings. */
+  rated: boolean;
   game: GameState;
   clock: ClockState;
 };
@@ -88,12 +89,14 @@ export function parseOnlineCommand(value: unknown): OnlineCommand {
       if (!identifier(value.ticket)) return invalid();
       return { version: 1, type: value.type, ticket: value.ticket };
     case 'sync':
-      keys(value, ['version', 'type', 'ticket', 'matchId']);
+      keys(value, ['version', 'type', 'ticket', 'matchId', 'waitForRevision']);
       if ((value.ticket !== undefined && !identifier(value.ticket)) ||
-          (value.matchId !== undefined && !identifier(value.matchId))) return invalid();
+          (value.matchId !== undefined && !identifier(value.matchId)) ||
+          (value.waitForRevision !== undefined && (!Number.isSafeInteger(value.waitForRevision) || (value.waitForRevision as number) < 0 || value.matchId === undefined))) return invalid();
       return { version: 1, type: 'sync',
         ...(value.ticket === undefined ? {} : { ticket: value.ticket as string }),
         ...(value.matchId === undefined ? {} : { matchId: value.matchId as string }),
+        ...(value.waitForRevision === undefined ? {} : { waitForRevision: value.waitForRevision as number }),
       };
     case 'move':
     case 'resign': {

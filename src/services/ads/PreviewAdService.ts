@@ -1,6 +1,6 @@
 import type { PreferenceStorage } from '../../appearance/AppearanceStore';
 import { STORAGE_KEYS } from '../../storage/keys';
-import type { Entitlements } from '../purchases/PurchaseService';
+import type { Entitlements } from '../purchases/billing';
 export type AdReason = 'game_complete' | 'manual_test';
 export interface AdService {
   initAds(): Promise<void>;

@@ -31,7 +31,7 @@ export function OnlineGameScreen({ route, navigation }: Props) {
   useEffect(() => { void onlineClient?.sync().catch(() => undefined); }, []);
   useEffect(() => { setSelected(null); setPromotion(null); }, [match?.matchId, match?.revision]);
   const moves = useMemo(() => match && selected ? legalMoves(match.game.board, selected.row, selected.col, { enPassantTarget: match.game.enPassant }) : [], [match, selected]);
-  if (!match) return <Screen><Text style={styles.title}>Reconnecting to your game</Text><Text style={styles.copy}>{state.error ?? 'Open Online 3+2 to find your current match. Guest sessions last only while this app is open.'}</Text><AppButton title="Back to online lobby" onPress={() => navigation.replace('Multiplayer')} /></Screen>;
+  if (!match) return <Screen><Text style={styles.title}>Reconnecting to your game</Text><Text style={styles.copy}>{state.error ?? 'Open Online 3+2 to find your current match.'}</Text><AppButton title="Back to online lobby" onPress={() => navigation.replace('Multiplayer')} /></Screen>;
   const { game, playerColor } = match;
   const clock = displayedClock(match, state.receivedAt, now);
   const active = game.status === 'active';
@@ -50,7 +50,7 @@ export function OnlineGameScreen({ route, navigation }: Props) {
   }
   function promote(type: PieceType) { if (promotion && !locked) submit({ ...promotion, promotion: type }); }
   return <Screen><ScrollView contentContainerStyle={styles.content}>
-    <Text style={styles.eyebrow}>HUMAN OPPONENT · FREE · UNRATED</Text>
+    <Text style={styles.eyebrow}>{match.rated ? 'RATED · HUMAN OPPONENT' : 'HUMAN OPPONENT · UNRATED'}</Text>
     <Text style={styles.title}>vs {match.opponentName}</Text>
     <Text style={styles.copy}>You play {playerColor} · 3 minutes + 2 seconds per move</Text>
     <Text style={styles.status}>{status}</Text>
@@ -58,7 +58,7 @@ export function OnlineGameScreen({ route, navigation }: Props) {
     <View style={styles.clocks}>{(['black', 'white'] as const).map(color => <View key={color} style={[styles.clock, active && clock.active === color && styles.activeClock]}><Text style={styles.eyebrow}>{color.toUpperCase()}</Text><Text style={styles.clockValue}>{formatMs(color === 'white' ? clock.whiteMs : clock.blackMs)}</Text></View>)}</View>
     <ChessBoard board={game.board} selected={selected} moves={moves} onSquarePress={tap} disabled={locked || !!promotion} orientation={playerColor} />
     <AppButton title="Resign" secondary onPress={() => setConfirmResign(true)} disabled={!active || state.pending || state.connection !== 'connected'} />
-    <Text style={styles.copy}>Leaving this screen does not pause or resign. Return through Online 3+2 to resume. Closing or reloading the app loses this temporary guest session.</Text>
+    <Text style={styles.copy}>Leaving this screen does not pause or resign. Your clock keeps running; return through Online 3+2 to resume.</Text>
     <Text style={styles.subhead}>Move history</Text>
     <View style={styles.history}>{game.history.slice(0, 20).map((move, index) => <Text key={index} style={styles.copy}>{game.history.length - index}. {move}</Text>)}</View>
     {!active && <AppButton title="Play another free 3+2" onPress={() => navigation.replace('Multiplayer')} />}

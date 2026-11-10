@@ -4,35 +4,44 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
-import { authService } from '../services/auth/AuthService';
+import { authService, MIN_PASSWORD_LENGTH, USERNAME_RULES } from '../services/auth/AuthService';
+import { PRIVACY_URL } from '../services/api/ApiClient';
+import { Linking } from 'react-native';
 import { theme } from '../styles/theme';
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 export function RegisterScreen({ navigation }: Props) {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [busy, setBusy] = useState(false);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const register = async () => {
+    setBusy(true); setError('');
     try {
-      if (password !== confirm) throw new Error('Passwords do not match');
-      await authService.register(email, password);
-      navigation.replace('Home');
+      if (password !== confirm) throw new Error('Passwords do not match.');
+      await authService.register(username, password);
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
     } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
   };
   return <Screen>
     <Text style={styles.eyebrow}>JOIN SHIFTCHESS</Text>
     <Text style={styles.title}>Register</Text>
     <View style={styles.form}>
-      <Text style={styles.label}>Email</Text>
-      <TextInput style={styles.input} placeholder="you@example.com" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" keyboardType="email-address" autoComplete="email" value={email} onChangeText={setEmail} />
+      <Text style={styles.label}>Username</Text>
+      <TextInput style={styles.input} placeholder="Pick a username" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} autoComplete="username-new" textContentType="username" maxLength={20} value={username} onChangeText={setUsername} />
+      <Text style={styles.hint}>{USERNAME_RULES}. Other players will see it.</Text>
       <Text style={styles.label}>Password</Text>
-      <TextInput style={styles.input} placeholder="At least 6 characters" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password-new" value={password} onChangeText={setPassword} />
+      <TextInput style={styles.input} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password-new" textContentType="newPassword" value={password} onChangeText={setPassword} />
       <Text style={styles.label}>Confirm Password</Text>
-      <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password-new" value={confirm} onChangeText={setConfirm} />
-      {!!error && <Text style={styles.error}>{error}</Text>}
+      <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password-new" textContentType="newPassword" value={confirm} onChangeText={setConfirm} onSubmitEditing={register} />
+      {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </View>
-    <AppButton title="Create Account" onPress={register} />
-    <AppButton title="Back to Login" onPress={() => navigation.navigate('Login')} secondary />
+    <AppButton title={busy ? 'Creating account…' : 'Create Account'} onPress={register} disabled={busy} />
+    <AppButton title="I already have an account" onPress={() => navigation.replace('Login')} secondary />
+    <Text style={styles.legal}>By creating an account you agree to our{' '}
+      <Text accessibilityRole="link" style={styles.link} onPress={() => { if (PRIVACY_URL) void Linking.openURL(PRIVACY_URL); }}>Privacy Policy</Text>.
+    </Text>
   </Screen>;
 }
 const styles = StyleSheet.create({
@@ -41,5 +50,8 @@ const styles = StyleSheet.create({
   form: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 16, borderWidth: 1, borderColor: theme.colors.borderSoft, marginBottom: 6 },
   label: { color: theme.colors.textFaint, fontSize: 12, fontWeight: '800', marginBottom: 6, marginTop: 8 },
   input: { backgroundColor: theme.colors.surfaceAlt, color: theme.colors.text, padding: 13, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border },
+  hint: { color: theme.colors.textDim, fontSize: 12, marginTop: 6 },
+  legal: { color: theme.colors.textDim, textAlign: 'center', marginTop: 14, fontSize: 13, lineHeight: 19 },
+  link: { color: theme.colors.text, textDecorationLine: 'underline' },
   error: { color: theme.colors.danger, marginTop: 10, fontWeight: '700' },
 });
