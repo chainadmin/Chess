@@ -58,7 +58,7 @@ export function privacyPage(options: PageOptions = {}) {
 <ul>
 <li><strong>Other players</strong> see your username, rating and the moves of games you play against them.</li>
 <li><strong>Service providers</strong> that host our servers and database (for example Railway) process data on our behalf.</li>
-<li><strong>Resend</strong> delivers password-reset emails on our behalf if you have added an email address.</li>
+<li><strong>Postmark</strong> delivers password-reset emails on our behalf if you have added an email address.</li>
 <li><strong>Apple and Google</strong> process in-app purchases under their own privacy policies.</li>
 <li><strong>Google AdMob</strong> serves ads in the free version under Google's privacy policy (<a href="https://policies.google.com/privacy">policies.google.com/privacy</a>). Buying "Remove Ads" turns these ads off.</li>
 <li><strong>Legal reasons</strong>: we may disclose information when the law requires it or to protect the safety of our players and service.</li>

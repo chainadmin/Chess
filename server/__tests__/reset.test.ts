@@ -131,5 +131,5 @@ test('privacy policy mentions optional email and the email provider', async t =>
   const { url } = await setup(t);
   const html = await (await fetch(`${url}/privacy`)).text();
   assert.match(html, /Email address<\/strong> \(optional\)/);
-  assert.match(html, /Resend/);
+  assert.match(html, /Postmark/);
 });

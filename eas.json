@@ -6,8 +6,7 @@
   "build": {
     "base": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-shiftchess-api.up.railway.app",
-        "EXPO_PUBLIC_GAME_URL": "https://REPLACE-shiftchess-game.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://REPLACE-your-app.up.railway.app"
       }
     },
     "development": {
@@ -26,8 +25,7 @@
       "extends": "base",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-shiftchess-api.up.railway.app",
-        "EXPO_PUBLIC_GAME_URL": "https://REPLACE-shiftchess-game.up.railway.app",
+        "EXPO_PUBLIC_API_URL": "https://REPLACE-your-app.up.railway.app",
         "EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS": "ca-app-pub-REPLACE/REPLACE",
         "EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID": "ca-app-pub-REPLACE/REPLACE"
       }

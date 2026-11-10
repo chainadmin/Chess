@@ -1,56 +1,53 @@
 # ShiftChess launch guide
 
-This is the checklist for going live: two Railway servers, the App Store build, in-app purchases and AdMob.
+This is the checklist for going live: one Railway service, the App Store build, in-app purchases and AdMob.
 Every value you still need to fill in is marked **REPLACE** in the repository. Search for `REPLACE` to find them all.
 
 ## What runs where
 
 | Piece | Where | What it does |
 |---|---|---|
-| **Accounts API** (`server/api`) | Railway service `shiftchess-api` | Sign-up/login (username + password), profiles, leaderboard, purchase verification, account deletion, and the public `/privacy` and `/account-deletion` pages. |
-| **Game server** (`server/game`) | Railway service `shiftchess-game` | Matchmaking and live 3+2 games only. It checks the same sign-in tokens and saves results and rating changes to Postgres. |
-| **Postgres** | Railway Postgres | Users, sessions, finished games, ratings and purchases. Tables are created automatically on first start. |
+| **ShiftChess server** (`server/main.ts`) | Your one Railway service | Sign-up/login, profiles, leaderboard, purchase checks, password resets, account deletion, the `/privacy` and `/account-deletion` pages, **and** matchmaking and live online games, all on one address. |
+| **Postgres** | Railway Postgres database | Users, sessions, finished games, ratings and purchases. Tables are created automatically on first start. |
 
-The two servers are split by job so that sign-ups, logins and purchase checks never slow down live games. Opponent moves arrive by long-polling: the server answers the moment the board changes, instead of the app checking on a timer.
+Live games run in the server's memory, so moves are instant: the server answers the moment the board changes. Each result is saved to Postgres the moment a game ends.
 
-> Keep the game service at **1 replica**. Live games are held in memory, so a second copy would split the matchmaking queue. Redeploying the game server ends games in progress; ratings for finished games are already saved.
+> Keep the service at **1 replica**. A second copy would split players into two separate matchmaking queues. Redeploying ends games that are in progress; finished games and ratings are already saved.
 
-## 1. Railway (about 15 minutes)
+## 1. Railway (about 10 minutes)
 
-1. In your Railway project, click **New → Database → PostgreSQL**.
-2. Click **New → GitHub Repo**, pick this repository, and name the service `shiftchess-api`.
-   - Settings → **Config-as-code** → Railway config file: `railway/api.json`
-   - Variables:
+Your existing service is the right one; it just needs these settings.
+
+1. **Database**: if the project doesn't have one yet, click **New → Database → PostgreSQL**. (Railway shows the database as its own box. That's normal; it isn't a second server you have to manage.)
+2. **Your service** (the one connected to this GitHub repository):
+   - The repository now has a `railway.json` at the top level, which tells Railway to build `server/Dockerfile` and start the server. Nothing to click; just redeploy. If Settings → *Config-as-code* points at an old path such as `railway/api.json`, clear it or set it to `railway.json`.
+   - **Variables**:
      - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
      - `PRIVACY_CONTACT_EMAIL` = the email address for privacy requests
      - `APPLE_BUNDLE_ID` = `com.chainsoftwaregroup.shiftchess` (or your real bundle ID)
-     - `GOOGLE_PLAY_PACKAGE_NAME` and `GOOGLE_SERVICE_ACCOUNT_JSON`: only needed for Android (see step 3)
-     - `RESEND_API_KEY` and `EMAIL_FROM`: for password-reset emails (see step 1b)
-   - Settings → Networking → **Generate Domain**.
-3. Add the repository again as a second service named `shiftchess-game`.
-   - Railway config file: `railway/game.json`
-   - Variables: `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
-   - Generate a domain.
-4. Check that `https://<api-domain>/health` and `https://<game-domain>/health` both answer `{"ok":true,...}`, and that `https://<api-domain>/privacy` shows the policy.
-5. Put both domains into `eas.json` (`EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_GAME_URL`), replacing the `REPLACE-...` placeholders.
+     - `POSTMARK_SERVER_TOKEN` and `EMAIL_FROM`: password-reset emails (step 1b)
+     - `GOOGLE_PLAY_PACKAGE_NAME` and `GOOGLE_SERVICE_ACCOUNT_JSON`: only for Android (step 3)
+   - Settings → Networking → **Generate Domain** (if it doesn't have one yet).
+3. Check that `https://<your-domain>/health` answers `{"ok":true,"service":"shiftchess",...}` and that `https://<your-domain>/privacy` shows the policy.
+4. Put that one address into `eas.json` as `EXPO_PUBLIC_API_URL`, replacing `https://REPLACE-your-app.up.railway.app`. Online games use the same address automatically.
 
-Optional variables: `ALLOWED_ORIGINS` (only for a web build), `TRUST_PROXY_HOPS` (defaults to 1 on Railway), `MAX_PLAYERS`.
+Optional variables: `ALLOWED_ORIGINS` (only for a web build), `TRUST_PROXY_HOPS` (defaults to 1 on Railway), `MAX_PLAYERS`, `PUBLIC_URL` (only with a custom domain).
 
-## 1b. Password-reset email (about 15 minutes, plus DNS time)
+## 1b. Password-reset email with Postmark (about 5 minutes)
 
 Players can reset a forgotten password two ways:
-- **Email link**, if they added an email address (optional at sign-up, or later in Settings). The link opens a page on the accounts server, works once, and expires after 1 hour.
-- **Recovery code**: every player gets a code like `7KQ2-M9XD-4TPA-HV3N` when they sign up, and can make a new one in Settings. It works with or without email and needs no setup.
+- **Email link**, if they added an email address (optional at sign-up, or later in Settings). The link opens a page on your server, works once, and expires after 1 hour.
+- **Recovery code**: every player gets a code like `7KQ2-M9XD-4TPA-HV3N` when they sign up, and can make a new one in Settings. It works without email and needs no setup.
 
-To turn on email links:
-1. Create a free account at **resend.com** and add your domain (for example `chainsoftwaregroup.com`). Resend shows 3–4 DNS records; add them at your domain registrar and wait until Resend shows the domain as *Verified*. This can take from minutes to a few hours.
-2. Create an API key (permission: *Sending access*).
-3. On the `shiftchess-api` Railway service, set:
-   - `RESEND_API_KEY` = the key
-   - `EMAIL_FROM` = `ShiftChess <no-reply@yourdomain.com>` (must be on the verified domain)
-   - `PUBLIC_URL` = `https://<api-domain>`. Optional, because Railway's own domain is used automatically; set it if you add a custom domain.
+To turn on email links with your existing Postmark account:
+1. In Postmark, open the **Server** you want to use → **API Tokens** and copy the *Server API token*.
+2. Make sure the address you'll send from is a verified **Sender Signature**, or that its domain is verified (Sender Signatures → Domains).
+3. On the Railway service, set:
+   - `POSTMARK_SERVER_TOKEN` = the server token
+   - `EMAIL_FROM` = `ShiftChess <no-reply@yourdomain.com>` (the verified sender)
+   - `POSTMARK_MESSAGE_STREAM` is optional; it defaults to `outbound` (Postmark's transactional stream).
 
-Until this is set up, "Email me a link" tells players to use their recovery code instead. Nothing else breaks.
+Reset emails are tagged `password-reset` in Postmark's activity log. Link tracking is turned off, so Postmark never rewrites the one-time link. Until the token is set, "Email me a link" tells players to use their recovery code instead; nothing else breaks.
 
 ## 2. App identity (App Store Connect)
 
@@ -98,7 +95,7 @@ In-app purchases and ads use native code, so they **do not work in Expo Go**. To
 
 ## 6. App Store Connect answers
 
-- **Privacy Policy URL**: `https://<api-domain>/privacy`
+- **Privacy Policy URL**: `https://<your-domain>/privacy`
 - **App Privacy** ("nutrition label"). Data collected:
   - *User ID* (username): App Functionality, linked to the user
   - *Email address* (optional): App Functionality, linked to the user
@@ -106,7 +103,7 @@ In-app purchases and ads use native code, so they **do not work in Expo Go**. To
   - *Purchase history*: App Functionality, linked to the user
   - *Device ID* (advertising identifier) and *Advertising data*: Third-Party Advertising (AdMob). Used for **tracking** only if the user allows it.
   - *Product interaction* / *Crash data*: only if AdMob reports them; check Google's current AdMob disclosure guidance.
-- **Account deletion**: built in (Settings → Account → Delete account). Google Play also needs a web URL for this: `https://<api-domain>/account-deletion`
+- **Account deletion**: built in (Settings → Account → Delete account). Google Play also needs a web URL for this: `https://<your-domain>/account-deletion`
 - **Sign-in for review**: create a test account in the app and give App Review its username and password.
 - **Age rating**: no objectionable content, but includes ads and in-app purchases.
 - **Export compliance**: `ITSAppUsesNonExemptEncryption` is already set to false (the app only uses standard HTTPS).
@@ -114,13 +111,12 @@ In-app purchases and ads use native code, so they **do not work in Expo Go**. To
 ## Running everything locally
 
 ```bash
-npm run api:dev        # accounts API on :8788 (in-memory store unless DATABASE_URL is set)
-npm run game:dev       # game server on :8787 (needs the same DATABASE_URL to share accounts)
-cp .env.example .env   # points the app at both
+npm run server:dev     # the whole server on :8080 (in-memory data unless DATABASE_URL is set)
+cp .env.example .env   # points the app at it
 npm run web
 ```
 
-Both servers need the **same** `DATABASE_URL` locally, or the game server will not recognize accounts created on the API. `npm run online:server` still starts the old guest-only playtest server.
+Without `POSTMARK_SERVER_TOKEN`, local reset emails are printed in the server's terminal instead of being sent. `npm run online:server` still starts the old guest-only playtest server.
 
 Tests: `npm run check`. To also run the Postgres tests against a throwaway database:
 `TEST_DATABASE_URL=postgresql://user@localhost:5432/scratch npm test`.
@@ -128,5 +124,5 @@ Tests: `npm run check`. To also run the Postgres tests against a throwaway datab
 ## Known limits
 
 - A player who lost their password, never added an email, **and** lost their recovery code can't get back into that account. They can create a new account and restore store purchases on it.
-- Online games in progress are lost if the game server restarts or redeploys. Finished games and ratings are safe in Postgres.
-- One game-server instance. That is plenty for launch (thousands of concurrent players); scaling past one instance needs a shared match store.
+- Online games in progress are lost if the server restarts or redeploys. Finished games and ratings are safe in Postgres.
+- One server instance. That is plenty for launch (thousands of concurrent players); running more than one copy would need a shared match store.

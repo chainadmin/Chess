@@ -4,18 +4,26 @@ export type Email = { to: string; subject: string; text: string; html: string };
 export interface Mailer { send(email: Email): Promise<void> }
 
 /**
- * Resend (resend.com) transactional email over HTTPS. Set RESEND_API_KEY and
- * EMAIL_FROM, e.g. "ShiftChess <no-reply@yourdomain.com>" on a verified domain.
+ * Postmark (postmarkapp.com) transactional email. Set POSTMARK_SERVER_TOKEN
+ * (Server → API Tokens) and EMAIL_FROM, an address on a verified Sender
+ * Signature or domain, e.g. "ShiftChess <no-reply@yourdomain.com>".
  */
-export class ResendMailer implements Mailer {
-  constructor(private readonly apiKey: string, private readonly from: string, private readonly fetcher: typeof fetch = (input, init) => fetch(input, init)) {}
+export class PostmarkMailer implements Mailer {
+  constructor(private readonly token: string, private readonly from: string, private readonly stream = 'outbound',
+    private readonly fetcher: typeof fetch = (input, init) => fetch(input, init)) {}
   async send(email: Email) {
-    const response = await this.fetcher('https://api.resend.com/emails', {
+    const response = await this.fetcher('https://api.postmarkapp.com/email', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: this.from, to: [email.to], subject: email.subject, text: email.text, html: email.html }),
+      headers: { 'X-Postmark-Server-Token': this.token, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        From: this.from, To: email.to, Subject: email.subject, TextBody: email.text, HtmlBody: email.html,
+        MessageStream: this.stream, Tag: 'password-reset', TrackOpens: false, TrackLinks: 'None',
+      }),
     });
-    if (!response.ok) throw new Error(`Email provider rejected the message (${response.status}).`);
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({})) as { ErrorCode?: number; Message?: string };
+      throw new Error(`Postmark rejected the message (${response.status}${detail.ErrorCode ? `, code ${detail.ErrorCode}` : ''}): ${detail.Message ?? 'no details'}`);
+    }
   }
 }
 
@@ -25,7 +33,7 @@ export class ConsoleMailer implements Mailer {
 }
 
 export function mailerFromEnv(env: NodeJS.ProcessEnv = process.env): Mailer | undefined {
-  if (env.RESEND_API_KEY && env.EMAIL_FROM) return new ResendMailer(env.RESEND_API_KEY, env.EMAIL_FROM);
+  if (env.POSTMARK_SERVER_TOKEN && env.EMAIL_FROM) return new PostmarkMailer(env.POSTMARK_SERVER_TOKEN, env.EMAIL_FROM, env.POSTMARK_MESSAGE_STREAM || 'outbound');
   if (env.NODE_ENV !== 'production' && !env.RAILWAY_ENVIRONMENT) return new ConsoleMailer();
   return undefined; // production without a provider: email resets report "not configured"
 }

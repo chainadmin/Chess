@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { createServer, IncomingMessage, ServerResponse } from 'node:http';
+import { createServer, IncomingMessage, RequestListener, ServerResponse } from 'node:http';
 import { grantsFor, isProductId } from '../../src/services/purchases/products';
 import {
   clientAddress, HttpError, parseOrigins, positive, rateLimiter, readForm, readJson, sendHtml, sendJson, Window,
@@ -335,6 +335,8 @@ export function createApiServer(options: ApiOptions) {
 
   return {
     server,
+    /** The request handler, for mounting inside another HTTP server (see server/main.ts). */
+    handle: server.listeners('request')[0] as RequestListener,
     async listen() {
       await new Promise<void>((resolve, reject) => {
         server.once('error', reject);

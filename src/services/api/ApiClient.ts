@@ -3,10 +3,10 @@ import { onlineServerUrl } from '../../online/OnlineClient';
 declare const process: { env: { EXPO_PUBLIC_API_URL?: string; EXPO_PUBLIC_GAME_URL?: string; EXPO_PUBLIC_ONLINE_URL?: string } };
 const development = typeof __DEV__ !== 'undefined' && __DEV__;
 // Expo inlines these exact property reads at build time (see eas.json / .env).
-/** Railway service #1: accounts, purchases and the privacy page. */
+/** The ShiftChess server on Railway: accounts, purchases, privacy page and online games. */
 export const API_URL = onlineServerUrl(process.env.EXPO_PUBLIC_API_URL, development);
-/** Railway service #2: live games. EXPO_PUBLIC_ONLINE_URL is the older name. */
-export const GAME_URL = onlineServerUrl(process.env.EXPO_PUBLIC_GAME_URL ?? process.env.EXPO_PUBLIC_ONLINE_URL, development);
+/** Online games use the same server unless a separate game server is configured (optional). */
+export const GAME_URL = onlineServerUrl(process.env.EXPO_PUBLIC_GAME_URL ?? process.env.EXPO_PUBLIC_ONLINE_URL, development) ?? API_URL;
 export const PRIVACY_URL = API_URL ? `${API_URL}/privacy` : null;
 
 export class ApiError extends Error {

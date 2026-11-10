@@ -32,7 +32,7 @@ export function WelcomeScreen({ navigation }: Props) {
         <View key={perk} style={styles.perk}><Text style={styles.perkText}>✓ {perk}</Text></View>)}
     </View>
 
-    <AppButton title="Play now · It's free" onPress={() => { void playNow(); }} />
+    <AppButton title="Play now" onPress={() => { void playNow(); }} />
     {authService.accountsAvailable && <>
       <AppButton title="Create free account" secondary onPress={() => navigation.navigate('Register')} />
       <Text style={styles.login}>Already have an account? <Text accessibilityRole="link" style={styles.loginLink} onPress={() => navigation.navigate('Login')}>Log in</Text></Text>
