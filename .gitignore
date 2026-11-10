@@ -10,3 +10,11 @@ yarn-debug.*
 yarn-error.*
 .env
 .env.local
+
+# Replit and tool caches
+.cache/
+.local/
+.config/
+.upm/
+.pythonlibs/
+dist-web/
