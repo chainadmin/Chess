@@ -63,6 +63,12 @@
           ]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "231089ff-2290-472d-b0f3-811644d79101"
+      }
+    },
+    "owner": "waypointsolutions2023"
   }
 }
