@@ -60,3 +60,20 @@ test('without a signed-in account the client asks the player to log in', async (
   client.reset();
   assert.equal(client.getSnapshot().connection, 'idle');
 });
+
+test('the default fetch is called unbound, as browsers require', async t => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  let receiver: unknown = 'not called';
+  // Browsers throw "Illegal invocation" when fetch runs with a foreign `this`.
+  globalThis.fetch = function (this: unknown) {
+    receiver = this;
+    if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+    return Promise.resolve(new Response(JSON.stringify({ version: 1, serverNow: 1, status: 'idle' })));
+  } as typeof fetch;
+  const client = new OnlineClient('http://127.0.0.1:9', { getToken: async () => 'x'.repeat(43) });
+  const state = await client.sync().then(() => client.join()).catch(error => error);
+  assert.notEqual(receiver, 'not called');
+  assert.ok(!(state instanceof TypeError), String(state));
+  client.dispose();
+});

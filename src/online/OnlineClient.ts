@@ -71,7 +71,8 @@ export class OnlineClient {
   private pollEpoch = 0;
 
   constructor(readonly url: string, options: Options = {}) {
-    this.fetcher = options.fetch ?? fetch;
+    // Call the global through a wrapper: browsers throw "Illegal invocation" for a detached fetch.
+    this.fetcher = options.fetch ?? ((input, init) => fetch(input, init));
     this.now = options.now ?? (() => performance.now());
     this.pollMs = options.pollMs ?? 750;
     this.timeoutMs = options.timeoutMs ?? 6000;
