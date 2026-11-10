@@ -185,7 +185,7 @@ export function createOnlineServer(options: ServerOptions = {}) {
         res.setHeader('Access-Control-Max-Age', '600');
         res.writeHead(204); res.end(); return;
       }
-      if (req.method === 'GET' && req.url === '/health') { send(res, 200, { ok: true, mode: accountsMode ? 'accounts' : 'development-guest', protocolVersion: 1 }); return; }
+      if (req.method === 'GET' && req.url === '/health') { send(res, 200, { ok: true, service: 'online', mode: accountsMode ? 'accounts' : 'development-guest', protocolVersion: 1 }); return; }
       if (req.method !== 'POST' || !['/session', '/command'].includes(req.url ?? '') || (accountsMode && req.url === '/session')) throw new HttpError(404, 'not_found', 'Endpoint not found.');
       if (accountsMode) {
         let account = cachedAccount;
