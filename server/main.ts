@@ -87,7 +87,27 @@ export function createCombinedServer(options: CombinedOptions) {
   };
 }
 
+export type Role = 'all' | 'accounts' | 'online';
+/**
+ * Which job this copy of the server does. Every Railway service runs the same
+ * code and the same start command; the SHIFTCHESS_ROLE variable picks the job.
+ */
+export function roleFromEnv(value: string | undefined): Role {
+  const role = (value ?? '').trim().toLowerCase();
+  if (!role || role === 'all') return 'all';
+  if (role === 'accounts' || role === 'api') return 'accounts';
+  if (role === 'online' || role === 'game') return 'online';
+  throw new Error(`SHIFTCHESS_ROLE must be "accounts", "online" or empty (both), not "${value}".`);
+}
+
 async function main() {
+  const role = roleFromEnv(process.env.SHIFTCHESS_ROLE);
+  if (role === 'accounts') { await (await import('./api/index')).runAccounts(); return; }
+  if (role === 'online') { await (await import('./game/index')).runGame(); return; }
+  await runBoth();
+}
+
+async function runBoth() {
   const production = process.env.NODE_ENV === 'production' || !!process.env.RAILWAY_ENVIRONMENT;
   const store = await storeFromEnv();
   const port = envInt('PORT', 8080);

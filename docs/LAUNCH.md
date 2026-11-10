@@ -5,33 +5,51 @@ Every value you still need to fill in is marked **REPLACE** in the repository. S
 
 ## What runs where
 
-| Piece | Where | What it does |
-|---|---|---|
-| **ShiftChess server** (`server/main.ts`) | Your one Railway service | Sign-up/login, profiles, leaderboard, purchase checks, password resets, account deletion, the `/privacy` and `/account-deletion` pages, **and** matchmaking and live online games, all on one address. |
-| **Postgres** | Railway Postgres database | Users, sessions, finished games, ratings and purchases. Tables are created automatically on first start. |
+Two Railway services, both built from this repository with the same `railway.json`. The variable **`SHIFTCHESS_ROLE`** decides which job each one does:
 
-Live games run in the server's memory, so moves are instant: the server answers the moment the board changes. Each result is saved to Postgres the moment a game ends.
+| Service | `SHIFTCHESS_ROLE` | Address | In charge of |
+|---|---|---|---|
+| **Accounts** | `accounts` | `https://shiftchess.chain-developments.com` | Sign-up/login, profiles, leaderboard, purchases, password resets, account deletion, `/privacy`, `/account-deletion`, `/reset-password` |
+| **Online** | `online` | `https://shiftchess-online.chain-developments.com` | Matchmaking and live online games (`/command`) only |
+| **Postgres** | (none) | private | Users, sessions, games, ratings, purchases. Both services use it. |
 
-> Keep the service at **1 replica**. A second copy would split players into two separate matchmaking queues. Redeploying ends games that are in progress; finished games and ratings are already saved.
+How a game works across them:
+1. The app logs in on **Accounts**, which saves a sign-in token (hashed) in Postgres and gives it to the app.
+2. The app sends that same token to **Online** to find and play games. Online looks the token up in the shared Postgres (once a minute at most, then it's cached) to know who the player is.
+3. Games run in Online's memory, so moves are instant. When a game ends, Online writes the result and both new ratings to Postgres.
+4. Home, Leaderboard and Settings read those ratings back from **Accounts**.
 
-## 1. Railway (about 10 minutes)
+The two never call each other directly; the database is the only link. If Accounts is busy (sign-ups, password hashing, purchase checks), games on Online are not slowed down. If Online restarts, logins and purchases keep working.
 
-Your existing service is the right one; it just needs these settings.
+> Keep **Online at 1 replica**: live games and the matchmaking queue are held in its memory, and a second copy would split the queue. Accounts can be scaled freely. Redeploying Online ends games in progress; finished games and ratings are already saved.
+> Leaving `SHIFTCHESS_ROLE` empty runs both jobs in one service. That is useful for a single-service setup or local development.
 
-1. **Database**: if the project doesn't have one yet, click **New → Database → PostgreSQL**. (Railway shows the database as its own box. That's normal; it isn't a second server you have to manage.)
-2. **Your service** (the one connected to this GitHub repository):
-   - The repository now has a `railway.json` at the top level, which tells Railway to build `server/Dockerfile` and start the server. Nothing to click; just redeploy. If Settings → *Config-as-code* points at an old path such as `railway/api.json`, clear it or set it to `railway.json`.
-   - **Variables**:
+## 1. Railway
+
+1. **Postgres**: one database in the project (already done).
+2. **Accounts service** (your existing `chess` service):
+   - Variables:
+     - `SHIFTCHESS_ROLE` = `accounts`
      - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
-     - `PRIVACY_CONTACT_EMAIL` = the email address for privacy requests
-     - `APPLE_BUNDLE_ID` = `com.chainsoftwaregroup.shiftchess` (or your real bundle ID)
-     - `POSTMARK_SERVER_TOKEN` and `EMAIL_FROM`: password-reset emails (step 1b)
-     - `GOOGLE_PLAY_PACKAGE_NAME` and `GOOGLE_SERVICE_ACCOUNT_JSON`: only for Android (step 3)
-   - Settings → Networking → **Generate Domain** (if it doesn't have one yet).
-3. Check that `https://shiftchess.chain-developments.com/health` answers `{"ok":true,"service":"shiftchess",...}` and that `https://shiftchess.chain-developments.com/privacy` shows the policy.
-4. **Custom domain**: the app is built for `https://shiftchess.chain-developments.com` (`EXPO_PUBLIC_API_URL` in `eas.json`). In Railway → Networking → **Custom Domain**, add `shiftchess.chain-developments.com` with the same port as the service, add the CNAME record Railway shows at chain-developments.com's DNS provider, and set the variable `PUBLIC_URL` = `https://shiftchess.chain-developments.com`. Online games use the same address automatically.
+     - `PORT` = `8081` (must match the port shown on the service's domains)
+     - `PUBLIC_URL` = `https://shiftchess.chain-developments.com`
+     - `PRIVACY_CONTACT_EMAIL`, `APPLE_BUNDLE_ID`, `POSTMARK_SERVER_TOKEN`, `EMAIL_FROM`
+     - Android only: `GOOGLE_PLAY_PACKAGE_NAME`, `GOOGLE_SERVICE_ACCOUNT_JSON`
+   - Custom domain: `shiftchess.chain-developments.com`
+3. **Online service** (new): **+ New → GitHub Repo → this repository** (same repo, same branch `main`). Name it `online`.
+   - Variables:
+     - `SHIFTCHESS_ROLE` = `online`
+     - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
+     - `PORT` = `8081`
+   - Settings → Deploy → **Replicas: 1**.
+   - Custom domain: `shiftchess-online.chain-developments.com` (port 8081). Add the CNAME Railway shows at your DNS provider.
+4. Check both:
+   - `https://shiftchess.chain-developments.com/health` → `{"ok":true,"service":"accounts"}`
+   - `https://shiftchess-online.chain-developments.com/health` → `{"ok":true,"service":"online",...}`
 
-Optional variables: `ALLOWED_ORIGINS` (only for a web build), `TRUST_PROXY_HOPS` (defaults to 1 on Railway), `MAX_PLAYERS`, `PUBLIC_URL` (only with a custom domain).
+The app already points at both addresses (`EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_GAME_URL` in `eas.json`).
+
+Optional variables: `ALLOWED_ORIGINS` (only for a web build), `TRUST_PROXY_HOPS` (defaults to 1 on Railway), `MAX_PLAYERS` (online).
 
 ## 1b. Password-reset email with Postmark (about 5 minutes)
 
@@ -42,7 +60,7 @@ Players can reset a forgotten password two ways:
 To turn on email links with your existing Postmark account:
 1. In Postmark, open the **Server** you want to use → **API Tokens** and copy the *Server API token*.
 2. Make sure the address you'll send from is a verified **Sender Signature**, or that its domain is verified (Sender Signatures → Domains).
-3. On the Railway service, set:
+3. On the **Accounts** Railway service, set:
    - `POSTMARK_SERVER_TOKEN` = the server token
    - `EMAIL_FROM` = `ShiftChess <no-reply@yourdomain.com>` (the verified sender)
    - `POSTMARK_MESSAGE_STREAM` is optional; it defaults to `outbound` (Postmark's transactional stream).
@@ -111,7 +129,7 @@ In-app purchases and ads use native code, so they **do not work in Expo Go**. To
 ## Running everything locally
 
 ```bash
-npm run server:dev     # the whole server on :8080 (in-memory data unless DATABASE_URL is set)
+npm run server:dev     # both jobs in one process on :8080 (in-memory data unless DATABASE_URL is set)
 cp .env.example .env   # points the app at it
 npm run web
 ```
@@ -124,5 +142,5 @@ Tests: `npm run check`. To also run the Postgres tests against a throwaway datab
 ## Known limits
 
 - A player who lost their password, never added an email, **and** lost their recovery code can't get back into that account. They can create a new account and restore store purchases on it.
-- Online games in progress are lost if the server restarts or redeploys. Finished games and ratings are safe in Postgres.
-- One server instance. That is plenty for launch (thousands of concurrent players); running more than one copy would need a shared match store.
+- Online games in progress are lost if the Online service restarts or redeploys. Finished games and ratings are safe in Postgres.
+- One Online instance. That is plenty for launch (thousands of concurrent players); running more than one copy would need a shared match store.

@@ -27,8 +27,8 @@ export function createSettler(store: Store, log: (message: string) => void = con
   return { settle, pending };
 }
 
-/** Railway service #2: live games only. Accounts are verified against the shared database. */
-async function main() {
+/** Online service (SHIFTCHESS_ROLE=online): matchmaking and live games only. Accounts are verified against the shared database. */
+export async function runGame() {
   const production = process.env.NODE_ENV === 'production' || !!process.env.RAILWAY_ENVIRONMENT;
   const store = await storeFromEnv();
   const settler = createSettler(store);
@@ -36,7 +36,7 @@ async function main() {
   const app = createOnlineServer({
     authority,
     host: process.env.HOST ?? (production ? '0.0.0.0' : '127.0.0.1'),
-    port: envInt('PORT', 8787),
+    port: envInt('PORT', 8080),
     allowedOrigins: envOrigins('ALLOWED_ORIGINS', ['http://localhost:8081', 'http://127.0.0.1:8081']),
     trustProxyHops: envInt('TRUST_PROXY_HOPS', production ? 1 : 0),
     maxSessions: envInt('MAX_PLAYERS', 5000),
@@ -63,4 +63,4 @@ async function main() {
     });
   }
 }
-if (require.main === module) main().catch(error => { console.error('Unable to start the game server:', error instanceof Error ? error.message : error); process.exit(1); });
+if (require.main === module) runGame().catch(error => { console.error('Unable to start the game server:', error instanceof Error ? error.message : error); process.exit(1); });

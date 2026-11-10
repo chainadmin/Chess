@@ -64,3 +64,13 @@ test('Postmark mailer sends with the server token and fails loudly on errors', a
   ok = false;
   await assert.rejects(mailer.send(resetEmail('gone@example.com', 'p', 'https://x', 60)), /406/);
 });
+
+test('SHIFTCHESS_ROLE picks which job a copy of the server does', async () => {
+  const { roleFromEnv } = await import('../main');
+  assert.equal(roleFromEnv(undefined), 'all');
+  assert.equal(roleFromEnv(''), 'all');
+  assert.equal(roleFromEnv('accounts'), 'accounts');
+  assert.equal(roleFromEnv(' Online '), 'online');
+  assert.equal(roleFromEnv('game'), 'online');
+  assert.throws(() => roleFromEnv('everything'), /SHIFTCHESS_ROLE/);
+});
