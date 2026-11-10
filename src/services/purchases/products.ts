@@ -7,6 +7,9 @@
  */
 export type PremiumPieceSet = 'modern' | 'tournament';
 
+/** Same as ios.bundleIdentifier and android.package in app.json. */
+export const APP_ID = 'com.chainsoftwaregroup.shiftchess';
+
 export const PRODUCT_IDS = {
   removeAds: 'remove_ads',
   forgedMetal: 'pieces_forged_metal',

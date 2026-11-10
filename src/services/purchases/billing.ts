@@ -1,4 +1,16 @@
-import type { PremiumPieceSet, ProductId } from './products';
+import { APP_ID, EntitlementGrant, grantsFor, isProductId, type PremiumPieceSet, type ProductId } from './products';
+
+/**
+ * Android without a Google service-account key on the server: trust Google
+ * Play's own on-device confirmation instead. Only a completed purchase of one
+ * of our products, for this app, counts. Server verification takes over
+ * automatically once GOOGLE_SERVICE_ACCOUNT_JSON is set.
+ */
+export function trustedDeviceGrant(purchase: { productId: string; purchaseState: string; packageNameAndroid?: string | null }, packageName = APP_ID): EntitlementGrant | null {
+  if (!isProductId(purchase.productId) || purchase.purchaseState !== 'purchased') return null;
+  if (purchase.packageNameAndroid && purchase.packageNameAndroid !== packageName) return null;
+  return grantsFor([purchase.productId]);
+}
 export type { PremiumPieceSet } from './products';
 
 /** Pure billing types and the fail-closed adapter. No React Native imports, so Node tests can use them. */

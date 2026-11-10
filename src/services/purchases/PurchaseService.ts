@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
-import { api, API_URL } from '../api/ApiClient';
+import { api, ApiError, API_URL } from '../api/ApiClient';
 import { authService } from '../auth/AuthService';
-import { BILLING_UNAVAILABLE, Entitlements, PurchaseService, StoreProduct, UnavailablePurchaseService } from './billing';
+import { BILLING_UNAVAILABLE, Entitlements, PurchaseService, StoreProduct, trustedDeviceGrant, UnavailablePurchaseService } from './billing';
 import { entitlementStore } from './entitlements';
 import { ALL_PRODUCT_IDS, EntitlementGrant, isProductId, PIECE_SET_PRODUCTS, PremiumPieceSet, PRODUCT_IDS, ProductId } from './products';
 
@@ -59,11 +59,17 @@ export class StorePurchaseService implements PurchaseService {
     if (!isProductId(purchase.productId) || !purchase.purchaseToken) return null;
     const token = await authService.token();
     const user = await authService.currentUser();
-    const result = await api<{ entitlements: EntitlementGrant }>('POST', '/purchases/verify', {
-      token: user && !user.guest ? token : null,
-      body: { platform: Platform.OS === 'ios' ? 'ios' : 'android', productId: purchase.productId, purchaseToken: purchase.purchaseToken },
-    });
-    return result.entitlements;
+    try {
+      const result = await api<{ entitlements: EntitlementGrant }>('POST', '/purchases/verify', {
+        token: user && !user.guest ? token : null,
+        body: { platform: Platform.OS === 'ios' ? 'ios' : 'android', productId: purchase.productId, purchaseToken: purchase.purchaseToken },
+      });
+      return result.entitlements;
+    } catch (error) {
+      // No Google key on the server yet: rely on Google Play's on-device confirmation (unlocks on this device only).
+      if (Platform.OS === 'android' && error instanceof ApiError && error.code === 'not_configured') return trustedDeviceGrant(purchase);
+      throw error;
+    }
   }
 
   private async handle(purchase: Purchase) {

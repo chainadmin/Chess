@@ -1,8 +1,5 @@
 import { createHash, createSign, verify as verifySignature, X509Certificate } from 'node:crypto';
-import { isProductId, ProductId } from '../../src/services/purchases/products';
-
-/** Same as ios.bundleIdentifier and android.package in app.json. */
-export const APP_ID = 'com.chainsoftwaregroup.shiftchess';
+import { APP_ID, isProductId, ProductId } from '../../src/services/purchases/products';
 
 export type VerifiedPurchase = { platform: 'ios' | 'android'; productId: ProductId; transactionId: string };
 export class ReceiptError extends Error {
