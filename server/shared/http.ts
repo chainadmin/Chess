@@ -52,13 +52,31 @@ export function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-export function sendHtml(res: ServerResponse, html: string) {
+export function sendHtml(res: ServerResponse, html: string, options: { status?: number; form?: boolean } = {}) {
   if (res.destroyed || res.writableEnded) return;
-  res.writeHead(200, {
-    'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff',
-    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  res.writeHead(options.status ?? 200, {
+    'Content-Type': 'text/html; charset=utf-8', 'X-Content-Type-Options': 'nosniff',
+    // Pages with a secret in the URL (reset links) are never cached or leaked via Referer.
+    'Cache-Control': options.form ? 'no-store' : 'public, max-age=300',
+    'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action ${options.form ? "'self'" : "'none'"}; frame-ancestors 'none'`,
   });
   res.end(html);
+}
+
+/** Small HTML form posts (application/x-www-form-urlencoded). */
+export async function readForm(req: IncomingMessage, maxBody: number): Promise<URLSearchParams> {
+  if (req.headers['content-type']?.split(';')[0].trim().toLowerCase() !== 'application/x-www-form-urlencoded') {
+    throw new HttpError(415, 'unsupported_media_type', 'Send a form.');
+  }
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  for await (const chunk of req) {
+    bytes += (chunk as Buffer).length;
+    if (bytes > maxBody) throw new HttpError(413, 'body_too_large', 'Request body is too large.');
+    chunks.push(chunk as Buffer);
+  }
+  return new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
 }
 
 export async function readJson(req: IncomingMessage, maxBody: number): Promise<unknown> {

@@ -24,7 +24,8 @@ The two servers are split by job so that sign-ups, logins and purchase checks ne
      - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
      - `PRIVACY_CONTACT_EMAIL` = the email address for privacy requests
      - `APPLE_BUNDLE_ID` = `com.chainsoftwaregroup.shiftchess` (or your real bundle ID)
-     - `GOOGLE_PLAY_PACKAGE_NAME` and `GOOGLE_SERVICE_ACCOUNT_JSON`: only needed for Android (see step 4)
+     - `GOOGLE_PLAY_PACKAGE_NAME` and `GOOGLE_SERVICE_ACCOUNT_JSON`: only needed for Android (see step 3)
+     - `RESEND_API_KEY` and `EMAIL_FROM`: for password-reset emails (see step 1b)
    - Settings → Networking → **Generate Domain**.
 3. Add the repository again as a second service named `shiftchess-game`.
    - Railway config file: `railway/game.json`
@@ -34,6 +35,22 @@ The two servers are split by job so that sign-ups, logins and purchase checks ne
 5. Put both domains into `eas.json` (`EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_GAME_URL`), replacing the `REPLACE-...` placeholders.
 
 Optional variables: `ALLOWED_ORIGINS` (only for a web build), `TRUST_PROXY_HOPS` (defaults to 1 on Railway), `MAX_PLAYERS`.
+
+## 1b. Password-reset email (about 15 minutes, plus DNS time)
+
+Players can reset a forgotten password two ways:
+- **Email link**, if they added an email address (optional at sign-up, or later in Settings). The link opens a page on the accounts server, works once, and expires after 1 hour.
+- **Recovery code**: every player gets a code like `7KQ2-M9XD-4TPA-HV3N` when they sign up, and can make a new one in Settings. It works with or without email and needs no setup.
+
+To turn on email links:
+1. Create a free account at **resend.com** and add your domain (for example `chainsoftwaregroup.com`). Resend shows 3–4 DNS records; add them at your domain registrar and wait until Resend shows the domain as *Verified*. This can take from minutes to a few hours.
+2. Create an API key (permission: *Sending access*).
+3. On the `shiftchess-api` Railway service, set:
+   - `RESEND_API_KEY` = the key
+   - `EMAIL_FROM` = `ShiftChess <no-reply@yourdomain.com>` (must be on the verified domain)
+   - `PUBLIC_URL` = `https://<api-domain>`. Optional, because Railway's own domain is used automatically; set it if you add a custom domain.
+
+Until this is set up, "Email me a link" tells players to use their recovery code instead. Nothing else breaks.
 
 ## 2. App identity (App Store Connect)
 
@@ -84,6 +101,7 @@ In-app purchases and ads use native code, so they **do not work in Expo Go**. To
 - **Privacy Policy URL**: `https://<api-domain>/privacy`
 - **App Privacy** ("nutrition label"). Data collected:
   - *User ID* (username): App Functionality, linked to the user
+  - *Email address* (optional): App Functionality, linked to the user
   - *Gameplay content* (game moves and results): App Functionality, linked to the user
   - *Purchase history*: App Functionality, linked to the user
   - *Device ID* (advertising identifier) and *Advertising data*: Third-Party Advertising (AdMob). Used for **tracking** only if the user allows it.
@@ -109,6 +127,6 @@ Tests: `npm run check`. To also run the Postgres tests against a throwaway datab
 
 ## Known limits
 
-- No password reset (accounts have no email address). Players who forget their password can create a new account, and restore store purchases on it.
+- A player who lost their password, never added an email, **and** lost their recovery code can't get back into that account. They can create a new account and restore store purchases on it.
 - Online games in progress are lost if the game server restarts or redeploys. Finished games and ratings are safe in Postgres.
 - One game-server instance. That is plenty for launch (thousands of concurrent players); scaling past one instance needs a shared match store.

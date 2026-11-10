@@ -9,7 +9,7 @@ const url = process.env.TEST_DATABASE_URL;
 test('Postgres store: accounts, sessions, settlement, purchases and deletion', { skip: !url && 'TEST_DATABASE_URL not set' }, async t => {
   const store = new PostgresStore(url!);
   t.after(() => store.close());
-  await store.pool.query('DROP TABLE IF EXISTS purchases, games, sessions, users CASCADE');
+  await store.pool.query('DROP TABLE IF EXISTS password_resets, purchases, games, sessions, users CASCADE');
   await Promise.all([store.migrate(), store.migrate()]); // concurrent services starting together
   await store.migrate();
 
@@ -17,7 +17,7 @@ test('Postgres store: accounts, sessions, settlement, purchases and deletion', {
   assert.notEqual(a, 'taken');
   assert.equal(await store.createAccount('ALICE', 'hash-x'), 'taken');
   const b = await store.createAccount('bob', 'hash-b');
-  if (a === 'taken' || b === 'taken') throw new Error('unexpected');
+  if (typeof a === 'string' || typeof b === 'string') throw new Error('unexpected');
   assert.equal((await store.findAccountByUsername('alice'))!.id, a.id);
   assert.equal(await store.findAccountById('not-a-uuid'), null);
 
@@ -43,6 +43,26 @@ test('Postgres store: accounts, sessions, settlement, purchases and deletion', {
   await store.recordPurchase(b.id, { platform: 'ios', productId: 'remove_ads', transactionId: '1000' }); // first owner keeps it
   assert.deepEqual(await store.ownedProducts(a.id), ['remove_ads']);
   assert.deepEqual(await store.ownedProducts(b.id), []);
+
+  // v2: optional unique email, recovery hash and single-use reset links.
+  const c = await store.createAccount('carol', 'hash-c', { email: 'Carol@Example.com', recoveryHash: 'r1' });
+  if (typeof c === 'string') throw new Error('unexpected');
+  assert.equal(c.email, 'carol@example.com');
+  assert.equal(c.recoveryHash, 'r1');
+  assert.equal(await store.createAccount('dave', 'hash-d', { email: 'CAROL@example.com', recoveryHash: 'r2' }), 'email_taken');
+  assert.equal((await store.findAccountByEmail('carol@EXAMPLE.com'))!.id, c.id);
+  assert.equal(await store.setEmail(a.id, 'carol@example.com'), 'email_taken');
+  assert.equal(await store.setEmail(a.id, 'alice@example.com'), 'ok');
+  await store.setRecoveryHash(c.id, 'r3');
+  assert.equal((await store.findAccountById(c.id))!.recoveryHash, 'r3');
+  await store.createPasswordReset(c.id, 'reset-1', Date.now() + 60_000);
+  await store.createPasswordReset(c.id, 'reset-2', Date.now() + 60_000); // replaces reset-1
+  assert.equal(await store.findPasswordReset('reset-1', Date.now()), null);
+  assert.equal(await store.findPasswordReset('reset-2', Date.now()), c.id);
+  const consumed = await Promise.all([store.consumePasswordReset('reset-2', Date.now()), store.consumePasswordReset('reset-2', Date.now())]);
+  assert.deepEqual(consumed.filter(Boolean), [c.id], 'a link can only be used once, even concurrently');
+  await store.createPasswordReset(c.id, 'reset-old', Date.now() - 1);
+  assert.equal(await store.consumePasswordReset('reset-old', Date.now()), null);
 
   await store.deleteAccount(a.id);
   assert.equal(await store.findSession('digest-a', Date.now()), null);

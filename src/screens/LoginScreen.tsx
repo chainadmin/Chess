@@ -30,6 +30,7 @@ export function LoginScreen({ navigation }: Props) {
       <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password" textContentType="password" value={password} onChangeText={setPassword} onSubmitEditing={login} />
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </View>
+    <Text accessibilityRole="link" style={styles.forgot} onPress={() => navigation.navigate('ForgotPassword')}>Forgot password?</Text>
     <AppButton title={busy ? 'Logging in…' : 'Login'} onPress={login} disabled={busy} />
     <AppButton title="Create an account instead" onPress={() => navigation.replace('Register')} secondary />
     {PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
@@ -41,6 +42,7 @@ const styles = StyleSheet.create({
   form: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 16, borderWidth: 1, borderColor: theme.colors.borderSoft, marginBottom: 6 },
   label: { color: theme.colors.textFaint, fontSize: 12, fontWeight: '800', marginBottom: 6, marginTop: 8 },
   input: { backgroundColor: theme.colors.surfaceAlt, color: theme.colors.text, padding: 13, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border },
+  forgot: { color: theme.colors.cyan, fontWeight: '800', textAlign: 'right', marginBottom: 8, marginTop: 2, paddingVertical: 6 },
   link: { color: theme.colors.textDim, textAlign: 'center', textDecorationLine: 'underline', marginTop: 14, fontSize: 13 },
   error: { color: theme.colors.danger, marginTop: 10, fontWeight: '700' },
 });

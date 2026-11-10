@@ -32,6 +32,27 @@ export function SettingsScreen({ navigation }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [secure, setSecure] = useState<null | 'email' | 'code'>(null);
+  const [securePassword, setSecurePassword] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [secureError, setSecureError] = useState<string | null>(null);
+  const [secureBusy, setSecureBusy] = useState(false);
+  const openSecure = (kind: 'email' | 'code') => { setSecure(kind); setSecurePassword(''); setSecureError(null); setNewEmail(user?.email ?? ''); };
+  const submitSecure = async () => {
+    setSecureBusy(true); setSecureError(null);
+    try {
+      if (secure === 'email') {
+        await authService.setEmail(newEmail, securePassword);
+        setUser(await authService.currentUser());
+        setSecure(null);
+      } else {
+        const code = await authService.newRecoveryCode(securePassword);
+        setSecure(null);
+        navigation.navigate('RecoveryCode', { code, then: 'back' });
+      }
+    } catch (error) { setSecureError(error instanceof Error ? error.message : 'Something went wrong.'); }
+    finally { setSecureBusy(false); }
+  };
   useEffect(() => {
     if (!purchaseService.available) return;
     purchaseService.products().then(setProducts).catch(() => setStoreMessage('The store is not reachable right now. Try again later.'));
@@ -143,6 +164,11 @@ export function SettingsScreen({ navigation }: Props) {
       {user?.profile && <Text style={styles.note}>Rating {user.profile.rating} · {user.profile.wins}W {user.profile.losses}L {user.profile.draws}D</Text>}
       {user?.guest && authService.accountsAvailable && <AppButton title="Create a free account" onPress={() => navigation.navigate('Register')} />}
       <AppButton title={user?.guest ? 'Leave guest mode' : 'Log out'} onPress={logout} secondary />
+      {user && !user.guest && <>
+        <Text style={styles.note}>Email for password resets: {user.email ?? 'not set'}</Text>
+        <AppButton title={user.email ? 'Change email' : 'Add email for password resets'} secondary onPress={() => openSecure('email')} />
+        <AppButton title="New recovery code" secondary onPress={() => openSecure('code')} />
+      </>}
       {user && !user.guest && <AppButton title="Delete account" secondary onPress={() => { setDeletePassword(''); setDeleteError(null); setDeleting(true); }} />}
       {PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
     </View>
@@ -165,10 +191,21 @@ export function SettingsScreen({ navigation }: Props) {
       {storeMessage && <Text accessibilityLiveRegion="polite" style={styles.note}>{storeMessage}</Text>}
       {__DEV__ && <AppButton title="Preview ad placement (dev)" onPress={() => { void adService.maybeShowInterstitial('manual_test'); }} secondary />}
     </View>
+    <Modal visible={secure !== null} transparent animationType="fade" onRequestClose={() => setSecure(null)}>
+      <View style={styles.backdrop}><View style={styles.modalCard}>
+        <Text style={styles.sectionTitle}>{secure === 'email' ? 'Email for password resets' : 'Make a new recovery code'}</Text>
+        <Text style={styles.rowValue}>{secure === 'email' ? 'Used only to send reset links. Leave it empty to remove it.' : 'Your old recovery code will stop working. You will see the new one once.'}</Text>
+        {secure === 'email' && <TextInput style={styles.input} placeholder="you@example.com" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" keyboardType="email-address" autoComplete="email" value={newEmail} onChangeText={setNewEmail} />}
+        <TextInput style={styles.input} placeholder="Current password" placeholderTextColor={theme.colors.textFaint} secureTextEntry value={securePassword} onChangeText={setSecurePassword} autoComplete="password" />
+        {secureError && <Text accessibilityRole="alert" style={styles.error}>{secureError}</Text>}
+        <AppButton title={secureBusy ? 'Saving…' : secure === 'email' ? 'Save email' : 'Make new code'} onPress={() => { void submitSecure(); }} disabled={!securePassword || secureBusy} />
+        <AppButton title="Cancel" secondary onPress={() => setSecure(null)} />
+      </View></View>
+    </Modal>
     <Modal visible={deleting} transparent animationType="fade" onRequestClose={() => setDeleting(false)}>
       <View style={styles.backdrop}><View style={styles.modalCard}>
         <Text style={styles.sectionTitle}>Delete your account?</Text>
-        <Text style={styles.rowValue}>This permanently deletes your username, rating, game record and purchase records on our servers. Store purchases can be restored to a new account. This cannot be undone.</Text>
+        <Text style={styles.rowValue}>This permanently deletes your username, email, rating, game record and purchase records on our servers. Store purchases can be restored to a new account. This cannot be undone.</Text>
         <TextInput style={styles.input} placeholder="Enter your password" placeholderTextColor={theme.colors.textFaint} secureTextEntry value={deletePassword} onChangeText={setDeletePassword} autoComplete="password" />
         {deleteError && <Text accessibilityRole="alert" style={styles.error}>{deleteError}</Text>}
         <AppButton title="Delete permanently" onPress={() => { void removeAccount(); }} disabled={!deletePassword} />

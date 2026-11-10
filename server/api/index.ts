@@ -1,6 +1,7 @@
 import { envInt, envOrigins } from '../shared/http';
 import { storeFromEnv } from '../shared/postgres';
 import { createApiServer } from './app';
+import { mailerFromEnv } from './mailer';
 import { receiptVerifierFromEnv } from './receipts';
 
 /** Railway service #1: accounts, purchases and the /privacy page. */
@@ -14,6 +15,9 @@ async function main() {
     port: envInt('PORT', 8788),
     allowedOrigins: envOrigins('ALLOWED_ORIGINS', ['http://localhost:8081', 'http://127.0.0.1:8081']),
     trustProxyHops: envInt('TRUST_PROXY_HOPS', production ? 1 : 0),
+    mailer: mailerFromEnv(),
+    // Base address for reset links. Railway provides RAILWAY_PUBLIC_DOMAIN once a domain is generated.
+    publicUrl: process.env.PUBLIC_URL ?? (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${envInt('PORT', 8788)}`),
     pages: { owner: process.env.APP_OWNER ?? 'Chain Software Group', appName: 'ShiftChess', contactEmail: process.env.PRIVACY_CONTACT_EMAIL || undefined },
   });
   const { host, port } = await app.listen();
