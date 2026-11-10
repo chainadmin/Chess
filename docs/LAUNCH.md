@@ -28,8 +28,8 @@ Your existing service is the right one; it just needs these settings.
      - `POSTMARK_SERVER_TOKEN` and `EMAIL_FROM`: password-reset emails (step 1b)
      - `GOOGLE_PLAY_PACKAGE_NAME` and `GOOGLE_SERVICE_ACCOUNT_JSON`: only for Android (step 3)
    - Settings → Networking → **Generate Domain** (if it doesn't have one yet).
-3. Check that `https://<your-domain>/health` answers `{"ok":true,"service":"shiftchess",...}` and that `https://<your-domain>/privacy` shows the policy.
-4. Put that one address into `eas.json` as `EXPO_PUBLIC_API_URL`, replacing `https://REPLACE-your-app.up.railway.app`. Online games use the same address automatically.
+3. Check that `https://shiftchess.chain-developments.com/health` answers `{"ok":true,"service":"shiftchess",...}` and that `https://shiftchess.chain-developments.com/privacy` shows the policy.
+4. **Custom domain**: the app is built for `https://shiftchess.chain-developments.com` (`EXPO_PUBLIC_API_URL` in `eas.json`). In Railway → Networking → **Custom Domain**, add `shiftchess.chain-developments.com` with the same port as the service, add the CNAME record Railway shows at chain-developments.com's DNS provider, and set the variable `PUBLIC_URL` = `https://shiftchess.chain-developments.com`. Online games use the same address automatically.
 
 Optional variables: `ALLOWED_ORIGINS` (only for a web build), `TRUST_PROXY_HOPS` (defaults to 1 on Railway), `MAX_PLAYERS`, `PUBLIC_URL` (only with a custom domain).
 
@@ -95,7 +95,7 @@ In-app purchases and ads use native code, so they **do not work in Expo Go**. To
 
 ## 6. App Store Connect answers
 
-- **Privacy Policy URL**: `https://<your-domain>/privacy`
+- **Privacy Policy URL**: `https://shiftchess.chain-developments.com/privacy`
 - **App Privacy** ("nutrition label"). Data collected:
   - *User ID* (username): App Functionality, linked to the user
   - *Email address* (optional): App Functionality, linked to the user
@@ -103,7 +103,7 @@ In-app purchases and ads use native code, so they **do not work in Expo Go**. To
   - *Purchase history*: App Functionality, linked to the user
   - *Device ID* (advertising identifier) and *Advertising data*: Third-Party Advertising (AdMob). Used for **tracking** only if the user allows it.
   - *Product interaction* / *Crash data*: only if AdMob reports them; check Google's current AdMob disclosure guidance.
-- **Account deletion**: built in (Settings → Account → Delete account). Google Play also needs a web URL for this: `https://<your-domain>/account-deletion`
+- **Account deletion**: built in (Settings → Account → Delete account). Google Play also needs a web URL for this: `https://shiftchess.chain-developments.com/account-deletion`
 - **Sign-in for review**: create a test account in the app and give App Review its username and password.
 - **Age rating**: no objectionable content, but includes ads and in-app purchases.
 - **Export compliance**: `ITSAppUsesNonExemptEncryption` is already set to false (the app only uses standard HTTPS).
