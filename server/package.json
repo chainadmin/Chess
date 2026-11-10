@@ -1,0 +1,15 @@
+{
+  "name": "shiftchess-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ShiftChess Railway services: accounts API (api/) and game server (game/).",
+  "scripts": {
+    "start:api": "node --import tsx api/index.ts",
+    "start:game": "node --import tsx game/index.ts"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "pg": "^8.23.1",
+    "tsx": "4.23.13"
+  }
+}

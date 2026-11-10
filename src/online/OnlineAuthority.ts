@@ -25,6 +25,17 @@ type Options = {
   now?: () => number;
   random?: () => number;
   matchId?: () => string;
+  /** Whether snapshots report rated play (the production game server settles ratings). */
+  rated?: boolean;
+  /** Called exactly once per match when it ends, for durable result settlement. */
+  onFinished?: (match: FinishedMatchSummary) => void;
+};
+export type FinishedMatchSummary = {
+  matchId: string;
+  white: AuthenticatedPlayer; black: AuthenticatedPlayer;
+  outcome: 'white' | 'black' | 'draw';
+  reason: string;
+  moves: string[];
 };
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -53,6 +64,9 @@ export class OnlineAuthority {
   private readonly clock: () => number;
   private readonly random: () => number;
   private readonly makeId: () => string;
+  private readonly rated: boolean;
+  private readonly onFinished?: (match: FinishedMatchSummary) => void;
+  private readonly changeListeners = new Set<() => void>();
 
   constructor(options: Options = {}) {
     this.limits = { ...DEFAULT_LIMITS, ...options.limits };
@@ -62,6 +76,35 @@ export class OnlineAuthority {
     this.clock = options.now ?? (() => performance.now());
     this.random = options.random ?? Math.random;
     this.makeId = options.matchId ?? (() => `match-${++this.sequence}`);
+    this.rated = options.rated ?? false;
+    this.onFinished = options.onFinished;
+  }
+
+  /** Notified after any match revision changes (moves, resignations, timeouts, pairings). */
+  onChange(listener: () => void): () => void {
+    this.changeListeners.add(listener);
+    return () => { this.changeListeners.delete(listener); };
+  }
+  private changed(): void { this.changeListeners.forEach(listener => listener()); }
+
+  /** Current revision of an accessible match, for long-poll waiting. */
+  revisionFor(playerId: string, matchId: string): { revision: number; active: boolean } | undefined {
+    const match = this.matches.get(matchId);
+    if (!match || (match.players.white.id !== playerId && match.players.black.id !== playerId)) return undefined;
+    this.advance(match, this.readNow());
+    return { revision: match.revision, active: match.session.game.status === 'active' };
+  }
+
+  private finish(match: LiveMatch, now: number): void {
+    match.endedAt = now;
+    const game = match.session.game;
+    const outcome = game.winner ?? 'draw';
+    try {
+      this.onFinished?.({
+        matchId: match.id, white: { ...match.players.white }, black: { ...match.players.black },
+        outcome, reason: game.status, moves: [...game.history].reverse(),
+      });
+    } catch { /* Settlement failures are handled by the integrator; never break play. */ }
   }
 
   /** Throws OnlineError for rejected input. The caller can then request sync. */
@@ -142,7 +185,8 @@ export class OnlineAuthority {
     match.session = next;
     if (next.game.status !== 'active') {
       match.revision++;
-      match.endedAt = now;
+      this.finish(match, now);
+      this.changed();
     }
   }
 
@@ -196,6 +240,7 @@ export class OnlineAuthority {
     this.matches.set(id, match);
     this.currentMatch.set(player.id, id);
     this.currentMatch.set(waiting.player.id, id);
+    this.changed();
     return this.snapshot(match, player.id, now);
   }
 
@@ -240,7 +285,8 @@ export class OnlineAuthority {
     }
     match.revision++;
     match.receipts.set(receiptKey, signature);
-    if (match.session.game.status !== 'active') match.endedAt = now;
+    if (match.session.game.status !== 'active') this.finish(match, now);
+    this.changed();
     return this.snapshot(match, playerId, now);
   }
 
@@ -257,7 +303,7 @@ export class OnlineAuthority {
     const snapshot: MatchSnapshot = {
       matchId: match.id, revision: match.revision, playerColor,
       opponentName: match.players[playerColor === 'white' ? 'black' : 'white'].displayName,
-      queueId: ONLINE_QUEUE_ID, timeControl: { ...ONLINE_TIME_CONTROL }, rated: false,
+      queueId: ONLINE_QUEUE_ID, timeControl: { ...ONLINE_TIME_CONTROL }, rated: this.rated,
       game: match.session.game, clock: match.session.clock,
     };
     return { version: 1, serverNow: now, status: 'matched', match: clone(snapshot) };

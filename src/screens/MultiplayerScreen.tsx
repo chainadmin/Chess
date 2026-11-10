@@ -6,6 +6,7 @@ import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
 import { onlineClient, useOnlineState } from '../online/onlineService';
+import { authService, User } from '../services/auth/AuthService';
 import { theme } from '../styles/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Multiplayer'>;
@@ -13,6 +14,9 @@ export function MultiplayerScreen({ navigation }: Props) {
   const state = useOnlineState();
   const focused = useIsFocused();
   const [searching, setSearching] = useState(false);
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+  useFocusEffect(useCallback(() => { authService.currentUser().then(setUser); }, []));
+  const needsAccount = user !== undefined && (!user || user.guest);
   const leaving = useRef(false);
   const online = state.online;
   useFocusEffect(useCallback(() => {
@@ -34,6 +38,7 @@ export function MultiplayerScreen({ navigation }: Props) {
   }, [focused, navigation, online, state.pending]);
   const queued = online?.status === 'queued' || searching;
   function join() {
+    if (onlineClient?.getSnapshot().connection === 'expired') onlineClient.reset();
     setSearching(true);
     void onlineClient?.join().catch(() => {
       if (onlineClient?.getSnapshot().connection !== 'reconnecting') setSearching(false);
@@ -55,13 +60,16 @@ export function MultiplayerScreen({ navigation }: Props) {
       <Text style={styles.controlDetail}>3 minutes per player, plus 2 seconds after each move.</Text>
     </View>
     <View style={styles.statusCard}>
-      <Text style={styles.statusLabel}>{onlineClient ? 'UNRATED HUMAN PLAYTEST' : 'SERVER NOT CONFIGURED'}</Text>
-      <Text style={styles.statusTitle}>{queued ? 'Looking for another player…' : onlineClient ? 'Play someone on this server' : 'Live matchmaking needs a server'}</Text>
-      <Text style={styles.body}>{onlineClient ? 'Both players must connect to the same server. No computer will take an empty seat. Temporary guest sessions last while the app stays open.' : 'This build has no online server address. Local games work now. Online play unlocks when a live server is configured, with no purchase required.'}</Text>
+      <Text style={styles.statusLabel}>{!onlineClient ? 'SERVER NOT CONFIGURED' : needsAccount ? 'FREE ACCOUNT NEEDED' : `RATED · ${user?.profile ? `YOUR RATING ${user.profile.rating}` : 'REAL PLAYERS'}`}</Text>
+      <Text style={styles.statusTitle}>{queued ? 'Looking for another player…' : !onlineClient ? 'Live matchmaking needs a server' : needsAccount ? 'Create an account to play online' : 'Find a real opponent'}</Text>
+      <Text style={styles.body}>{!onlineClient ? 'This build has no online server address. Local games work now.' : needsAccount ? 'Online games are rated, so each player needs a username. It is free and takes a few seconds.' : 'You will be paired with the next player looking for a game. No computer takes an empty seat.'}</Text>
       {queued && <Text style={styles.body}>Keep this screen open while searching. You can cancel at any time.</Text>}
       {state.error && <Text accessibilityRole="alert" style={styles.body}>{state.error}</Text>}
     </View>
-    {queued || state.pending ? <AppButton title={state.pending && !searching ? 'Finishing request…' : 'Cancel search'} secondary onPress={cancel} disabled={state.pending && !searching} /> : <AppButton title={onlineClient ? 'Find a free 3+2 game' : 'Online server not configured'} onPress={join} disabled={!onlineClient || state.connection === 'expired'} />}
+    {needsAccount && onlineClient ? <>
+      <AppButton title="Create free account" onPress={() => navigation.navigate('Register')} />
+      <AppButton title="Login" secondary onPress={() => navigation.navigate('Login')} />
+    </> : queued || state.pending ? <AppButton title={state.pending && !searching ? 'Finishing request…' : 'Cancel search'} secondary onPress={cancel} disabled={state.pending && !searching} /> : <AppButton title={onlineClient ? 'Find a free 3+2 game' : 'Online server not configured'} onPress={join} disabled={!onlineClient || user === undefined} />}
     {state.connection === 'reconnecting' && <AppButton title="Retry connection" secondary onPress={() => { void onlineClient?.sync().catch(() => undefined); }} disabled={state.pending} />}
     {online?.status === 'matched' && online.match.game.status !== 'active' && <AppButton title="View last game" secondary onPress={() => navigation.navigate('OnlineGame', { matchId: online.match.matchId })} />}
     <Text style={styles.freePromise}>Online play will always be free. Optional purchases will be for removing ads and extra cosmetics.</Text>

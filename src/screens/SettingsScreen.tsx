@@ -1,11 +1,14 @@
-import React, { useCallback, useState } from 'react';
-import { Text, StyleSheet, Switch, View, ScrollView, Pressable } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Text, StyleSheet, Switch, View, ScrollView, Pressable, Modal, TextInput, Linking } from 'react-native';
 import { useFocusEffect, CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
-import { NO_ENTITLEMENTS } from '../services/purchases/PurchaseService';
+import { purchaseService, StoreProduct } from '../services/purchases/PurchaseService';
+import { useEntitlements } from '../services/purchases/entitlements';
+import { PIECE_SET_PRODUCTS, PRODUCT_IDS, ProductId } from '../services/purchases/products';
+import { PRIVACY_URL } from '../services/api/ApiClient';
 import { adService } from '../services/ads/AdService';
 import { useProgression } from '../progression/useProgression';
 import { BOARD_ACCESS, PIECE_ACCESS, canUseCosmetic, cosmeticLabel } from '../progression/cosmetics';
@@ -22,6 +25,32 @@ export function SettingsScreen({ navigation }: Props) {
   const progress = useProgression();
   const [sound, setSound] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const owned = useEntitlements();
+  const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [storeMessage, setStoreMessage] = useState<string | null>(null);
+  const [buying, setBuying] = useState<ProductId | 'restore' | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!purchaseService.available) return;
+    purchaseService.products().then(setProducts).catch(() => setStoreMessage('The store is not reachable right now. Try again later.'));
+  }, []);
+  const price = (id: ProductId) => products.find(product => product.id === id)?.price;
+  const run = async (key: ProductId | 'restore', action: () => Promise<unknown>, success: string) => {
+    setBuying(key); setStoreMessage(null);
+    try { await action(); setStoreMessage(success); }
+    catch (error) { setStoreMessage(error instanceof Error ? error.message : 'Something went wrong.'); }
+    finally { setBuying(null); }
+  };
+  const removeAccount = async () => {
+    setDeleteError(null);
+    try {
+      await authService.deleteAccount(deletePassword);
+      setDeleting(false);
+      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Welcome' }] }));
+    } catch (error) { setDeleteError(error instanceof Error ? error.message : 'Could not delete the account.'); }
+  };
   const load = useCallback(() => {
     authService.currentUser().then(setUser);
     soundService.isEnabled().then(setSound);
@@ -38,13 +67,13 @@ export function SettingsScreen({ navigation }: Props) {
       <Text style={styles.currentLook}>{progress.xp} XP · {progress.level === MAX_LEVEL ? 'Max level' : `${XP_PER_LEVEL - progress.xp % XP_PER_LEVEL} XP to your next level`}</Text>
       <View accessibilityRole="progressbar" accessibilityLabel="Practice level progress" accessibilityValue={{ min: 0, max: 100, now: progress.level === MAX_LEVEL ? 100 : progress.xp % XP_PER_LEVEL }} style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress.level === MAX_LEVEL ? 100 : progress.xp % XP_PER_LEVEL}%` }]} /></View>
       <Text style={styles.note}>Finish a local or computer game with at least 6 moves: 25 XP. Beat the computer: +25 XP. Solve the daily puzzle: 30 XP once per day.</Text>
-      <Text style={styles.note}>Practice progress is shared on this device only. It is not an online rating, a secure account balance, or proof of a purchase. Online rewards are not connected yet.</Text>
+      <Text style={styles.note}>Practice progress is saved on this device. Your online rating comes from rated online games.</Text>
       {progress.error && <><Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text><AppButton title="Retry loading progress" secondary onPress={() => { void progress.retryLoad(); }} /></>}
     </View>
 
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Your board, your style</Text>
-      <Text style={styles.rowValue}>Mix unlocked boards and pieces. Earn practice looks by playing; premium collections are preview-only until billing is connected. All cosmetics leave the rules unchanged.</Text>
+      <Text style={styles.rowValue}>Mix unlocked boards and pieces. Earn practice looks by playing, or pick up a premium collection. Cosmetics never change the rules.</Text>
       <Text style={styles.currentLook}>{appearance.boardTheme.name} · {PIECE_SETS[appearance.pieces].name}</Text>
       <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.livePreview, { borderColor: appearance.boardTheme.border }]}>
         {(['black', 'white'] as const).map((color, row) => <View key={color} style={styles.previewRow}>
@@ -61,7 +90,7 @@ export function SettingsScreen({ navigation }: Props) {
       {(Object.keys(BOARD_THEMES) as BoardThemeId[]).map(id => {
         const board = BOARD_THEMES[id];
         const selected = appearance.board === id;
-        const usable = canUseCosmetic(BOARD_ACCESS[id], progress.level, NO_ENTITLEMENTS);
+        const usable = canUseCosmetic(BOARD_ACCESS[id], progress.level, owned);
         const label = cosmeticLabel(BOARD_ACCESS[id], progress.level);
         return <Pressable key={id} testID={`board-choice-${id}`} accessibilityRole="radio" accessibilityLabel={`${board.name} board, ${board.description}, ${label}`}
           accessibilityState={{ checked: selected, disabled: !appearance.loaded || !usable }} disabled={!appearance.loaded || !usable}
@@ -81,14 +110,15 @@ export function SettingsScreen({ navigation }: Props) {
         const set = PIECE_SETS[id];
         const selected = appearance.pieces === id;
         const access = PIECE_ACCESS[id];
-        const usable = canUseCosmetic(access, progress.level, NO_ENTITLEMENTS);
+        const usable = canUseCosmetic(access, progress.level, owned);
         const premium = access.kind === 'premium';
-        const label = cosmeticLabel(access, progress.level);
+        const productId = access.kind === 'premium' ? PIECE_SET_PRODUCTS[access.product] : undefined;
+        const label = premium ? (usable ? 'Owned' : price(productId!) ? `Premium · ${price(productId!)}` : 'Premium collection') : cosmeticLabel(access, progress.level);
         return <Pressable key={id} testID={`piece-choice-${id}`} accessibilityRole="radio" accessibilityLabel={`${set.name} pieces, ${set.description}, ${label}`}
           accessibilityState={{ checked: selected, disabled: !appearance.loaded || !usable }} disabled={!appearance.loaded || !usable}
           onPress={() => { void appearance.updateAppearance({ pieces: id }); }}
           style={[styles.pieceChoice, premium && styles.premiumChoice, selected && styles.chosen]}>
-          {premium && <Text style={styles.premiumEyebrow}>PREMIUM COLLECTION · PREVIEW</Text>}
+          {premium && <Text style={styles.premiumEyebrow}>{usable ? 'PREMIUM COLLECTION · OWNED' : 'PREMIUM COLLECTION'}</Text>}
           <Text style={styles.choiceTitle}>{set.name}{selected ? ' ✓' : ''}</Text>
           <Text style={styles.note}>{set.description}</Text>
           <Text style={premium ? styles.premiumLabel : usable ? styles.unlocked : styles.locked}>{label}</Text>
@@ -98,13 +128,23 @@ export function SettingsScreen({ navigation }: Props) {
               {PIECE_ORDER.map(type => <View key={type} style={styles.setPiece}><PieceView type={type} color={color} set={id} /></View>)}
             </View>)}
           </View>
+          {premium && !usable && productId && <View style={styles.buy}>
+            <AppButton title={!purchaseService.available ? 'Available in the app store version' : buying === productId ? 'Opening store…' : `Buy ${set.name}${price(productId) ? ` · ${price(productId)}` : ''}`}
+              disabled={!purchaseService.available || buying !== null}
+              onPress={() => { void run(productId, () => purchaseService.purchasePieceSet(access.kind === 'premium' ? access.product : 'modern'), `${set.name} unlocked. Tap it to equip.`); }} />
+          </View>}
         </Pressable>;
       })}
     </View>
 
     <View style={styles.card}>
-      <Text style={styles.rowLabel}>Account</Text>
-      <Text style={styles.rowValue}>{user ? `${user.displayName}${user.guest ? ' (Guest)' : ''}` : 'Not signed in'}</Text>
+      <Text style={styles.sectionTitle}>Account</Text>
+      <Text style={styles.rowValue}>{user ? (user.guest ? 'Playing as a guest on this device' : `Signed in as ${user.displayName}`) : 'Not signed in'}</Text>
+      {user?.profile && <Text style={styles.note}>Rating {user.profile.rating} · {user.profile.wins}W {user.profile.losses}L {user.profile.draws}D</Text>}
+      {user?.guest && authService.accountsAvailable && <AppButton title="Create a free account" onPress={() => navigation.navigate('Register')} />}
+      <AppButton title={user?.guest ? 'Leave guest mode' : 'Log out'} onPress={logout} secondary />
+      {user && !user.guest && <AppButton title="Delete account" secondary onPress={() => { setDeletePassword(''); setDeleteError(null); setDeleting(true); }} />}
+      {PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
     </View>
 
     <View style={styles.card}>
@@ -115,13 +155,26 @@ export function SettingsScreen({ navigation }: Props) {
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Free play. Optional extras.</Text>
       <Text style={styles.rowValue}>Online play always stays free. Paid extras are ad removal and premium cosmetics only. No gameplay advantages.</Text>
-      <Text style={styles.note}>Purchases and live ads are not connected in this build. Premium items cannot be bought or equipped yet, and no prices have been set. Old demo purchase flags do not represent ownership.</Text>
-      <AppButton title="Remove ads · Not available yet" onPress={() => {}} disabled />
-      <AppButton title="Restore purchases · Not available yet" onPress={() => {}} secondary disabled />
-      <Text style={styles.note}>Preview the between-games ad placement below. This shows a clearly marked placeholder, never a live ad.</Text>
-      <AppButton title="Preview ad placement" onPress={() => { void adService.maybeShowInterstitial('manual_test'); }} secondary />
+      {!purchaseService.available && <Text style={styles.note}>{purchaseService.unavailableReason}</Text>}
+      {owned.adsRemoved ? <Text style={styles.unlocked}>Ads removed. Thank you for supporting ShiftChess!</Text> :
+        <AppButton title={buying === PRODUCT_IDS.removeAds ? 'Opening store…' : `Remove ads${price(PRODUCT_IDS.removeAds) ? ` · ${price(PRODUCT_IDS.removeAds)}` : ''}`}
+          disabled={!purchaseService.available || buying !== null}
+          onPress={() => { void run(PRODUCT_IDS.removeAds, () => purchaseService.purchaseRemoveAds(), 'Ads removed. Thank you!'); }} />}
+      <AppButton title={buying === 'restore' ? 'Restoring…' : 'Restore purchases'} secondary disabled={!purchaseService.available || buying !== null}
+        onPress={() => { void run('restore', () => purchaseService.restorePurchases(), 'Purchases restored.'); }} />
+      {storeMessage && <Text accessibilityLiveRegion="polite" style={styles.note}>{storeMessage}</Text>}
+      {__DEV__ && <AppButton title="Preview ad placement (dev)" onPress={() => { void adService.maybeShowInterstitial('manual_test'); }} secondary />}
     </View>
-    <AppButton title="Logout" onPress={logout} secondary />
+    <Modal visible={deleting} transparent animationType="fade" onRequestClose={() => setDeleting(false)}>
+      <View style={styles.backdrop}><View style={styles.modalCard}>
+        <Text style={styles.sectionTitle}>Delete your account?</Text>
+        <Text style={styles.rowValue}>This permanently deletes your username, rating, game record and purchase records on our servers. Store purchases can be restored to a new account. This cannot be undone.</Text>
+        <TextInput style={styles.input} placeholder="Enter your password" placeholderTextColor={theme.colors.textFaint} secureTextEntry value={deletePassword} onChangeText={setDeletePassword} autoComplete="password" />
+        {deleteError && <Text accessibilityRole="alert" style={styles.error}>{deleteError}</Text>}
+        <AppButton title="Delete permanently" onPress={() => { void removeAccount(); }} disabled={!deletePassword} />
+        <AppButton title="Cancel" secondary onPress={() => setDeleting(false)} />
+      </View></View>
+    </Modal>
     </ScrollView>
   </Screen>;
 }
@@ -129,6 +182,11 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 24, width: '100%', maxWidth: 700, alignSelf: 'center' },
   progressTrack: { height: 7, backgroundColor: theme.colors.borderSoft, borderRadius: 4, overflow: 'hidden', marginVertical: 8 },
   progressFill: { height: 7, backgroundColor: theme.colors.accent },
+  buy: { marginTop: 10 },
+  link: { color: theme.colors.textDim, textDecorationLine: 'underline', marginTop: 12, fontSize: 13, textAlign: 'center' },
+  backdrop: { flex: 1, backgroundColor: '#000a', justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 20, borderWidth: 1, borderColor: theme.colors.border, maxWidth: 520, width: '100%', alignSelf: 'center' },
+  input: { backgroundColor: theme.colors.surfaceAlt, color: theme.colors.text, padding: 13, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border, marginTop: 14 },
   premiumChoice: { borderColor: '#ab8741', backgroundColor: '#202735' },
   premiumEyebrow: { color: '#e3bf77', fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 8 },
   premiumLabel: { color: '#e3bf77', fontWeight: '800', fontSize: 12, marginTop: 6 },

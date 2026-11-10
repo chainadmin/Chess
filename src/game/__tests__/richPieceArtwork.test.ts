@@ -5,7 +5,7 @@ import { AppearanceStore } from '../../appearance/AppearanceStore';
 import { PIECE_ORDER, PIECE_SETS, DEFAULT_APPEARANCE, parseAppearance } from '../../appearance/catalog';
 import { RICH_PIECE_SETS, RICH_ATLAS_SIZE, RICH_PIECE_FRAME_SIZE, isRichPieceSet, richPieceFrame } from '../../appearance/richPieceArtwork';
 import { canUseCosmetic, availableAppearance, cosmeticLabel, PIECE_ACCESS, RICH_PIECE_UNLOCK_LEVELS } from '../../progression/cosmetics';
-import { NO_ENTITLEMENTS } from '../../services/purchases/PurchaseService';
+import { NO_ENTITLEMENTS } from '../../services/purchases/billing';
 
 test('three additional complete rich sets retain all existing collection IDs', () => {
   assert.deepEqual(Object.keys(PIECE_SETS), ['classic', 'club', 'modern', 'tournament', 'imperial', 'jade', 'crystal']);

@@ -10,7 +10,8 @@ const expected = ['src/appearance/catalog.ts', 'src/appearance/richPieceArtwork.
 const metadata = JSON.parse(readFileSync(resolve(output, 'metadata.json'), 'utf8'));
 for (const platform of ['web', 'ios', 'android']) {
   const directory = resolve(output, '_expo/static/js', platform);
-  const maps = readdirSync(directory).filter(name => name.endsWith('.map'));
+  // Libraries may add lazily loaded web chunks; the app code lives in the AppEntry bundle.
+  const maps = readdirSync(directory).filter(name => name.startsWith('AppEntry') && name.endsWith('.map'));
   assert.equal(maps.length, 1);
   const map = JSON.parse(readFileSync(resolve(directory, maps[0]), 'utf8'));
   const sources = new Map(map.sources.map((name, index) => [name, map.sourcesContent?.[index]]));
