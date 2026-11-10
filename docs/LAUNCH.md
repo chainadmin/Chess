@@ -77,13 +77,14 @@ Reset emails are tagged `password-reset` in Postmark's activity log. Link tracki
 
 ## 3. In-app purchases
 
-Create these three products with **exactly** these IDs, as **Non-Consumable** in App Store Connect and as one-time **in-app products** in Google Play Console:
+Create these four products with **exactly** these IDs, as **Non-Consumable** in App Store Connect and as one-time **in-app products** in Google Play Console:
 
 | Product ID | Unlocks |
 |---|---|
 | `remove_ads` | Turns off all AdMob ads |
 | `pieces_forged_metal` | Forged Metal piece collection |
 | `pieces_royal_lacquer` | Royal Lacquer piece collection |
+| `bundle_everything` | Everything Pack: all three above. Shown only to players who own none of them yet. |
 
 Prices, names and descriptions are set in the stores; the app shows the store's localized price. Every purchase is verified by the accounts server before anything unlocks:
 

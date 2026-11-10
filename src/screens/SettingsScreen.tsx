@@ -182,6 +182,15 @@ export function SettingsScreen({ navigation }: Props) {
       <Text style={styles.sectionTitle}>Free play. Optional extras.</Text>
       <Text style={styles.rowValue}>Online play always stays free. Paid extras are ad removal and premium cosmetics only. No gameplay advantages.</Text>
       {!purchaseService.available && <Text style={styles.note}>{purchaseService.unavailableReason}</Text>}
+      {/* Offered only to players who own none of the extras yet, so nobody pays twice for the same item. */}
+      {!owned.adsRemoved && owned.premiumPieceSets.length === 0 && <View style={styles.bundle}>
+        <Text style={styles.bundleEyebrow}>BEST VALUE</Text>
+        <Text style={styles.bundleTitle}>Everything Pack</Text>
+        <Text style={styles.rowValue}>Remove ads + Forged Metal + Royal Lacquer pieces</Text>
+        <AppButton title={buying === PRODUCT_IDS.everything ? 'Opening store…' : `Get everything${price(PRODUCT_IDS.everything) ? ` · ${price(PRODUCT_IDS.everything)}` : ''}`}
+          disabled={!purchaseService.available || buying !== null}
+          onPress={() => { void run(PRODUCT_IDS.everything, () => purchaseService.purchaseEverything(), 'Everything unlocked. Thank you!'); }} />
+      </View>}
       {owned.adsRemoved ? <Text style={styles.unlocked}>Ads removed. Thank you for supporting ShiftChess!</Text> :
         <AppButton title={buying === PRODUCT_IDS.removeAds ? 'Opening store…' : `Remove ads${price(PRODUCT_IDS.removeAds) ? ` · ${price(PRODUCT_IDS.removeAds)}` : ''}`}
           disabled={!purchaseService.available || buying !== null}
@@ -220,6 +229,9 @@ const styles = StyleSheet.create({
   progressTrack: { height: 7, backgroundColor: theme.colors.borderSoft, borderRadius: 4, overflow: 'hidden', marginVertical: 8 },
   progressFill: { height: 7, backgroundColor: theme.colors.accent },
   buy: { marginTop: 10 },
+  bundle: { borderWidth: 2, borderColor: theme.colors.accent, backgroundColor: theme.colors.surfaceAlt, borderRadius: theme.radius.lg, padding: 14, marginTop: 12, marginBottom: 6 },
+  bundleEyebrow: { color: theme.colors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
+  bundleTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '900', marginTop: 2 },
   link: { color: theme.colors.textDim, textDecorationLine: 'underline', marginTop: 12, fontSize: 13, textAlign: 'center' },
   backdrop: { flex: 1, backgroundColor: '#000a', justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 20, borderWidth: 1, borderColor: theme.colors.border, maxWidth: 520, width: '100%', alignSelf: 'center' },
