@@ -56,7 +56,7 @@
         "react-native-google-mobile-ads",
         {
           "iosAppId": "ca-app-pub-3940256099942544~1458002511",
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "androidAppId": "ca-app-pub-1580761947831808~9362553843",
           "userTrackingUsageDescription": "This lets ShiftChess show ads that are more relevant to you. You can say no and still play everything.",
           "skAdNetworkItems": [
             "cstr6suwn9.skadnetwork"

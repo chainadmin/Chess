@@ -27,7 +27,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://REPLACE-your-app.up.railway.app",
         "EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS": "ca-app-pub-REPLACE/REPLACE",
-        "EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID": "ca-app-pub-REPLACE/REPLACE"
+        "EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID": "ca-app-pub-1580761947831808/9294930227"
       }
     }
   },
