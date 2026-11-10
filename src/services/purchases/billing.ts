@@ -26,6 +26,7 @@ export interface PurchaseService {
   products(): Promise<StoreProduct[]>;
   getEntitlements(): Promise<Entitlements>;
   purchaseRemoveAds(): Promise<Entitlements>;
+  purchaseEverything(): Promise<Entitlements>;
   purchasePieceSet(id: PremiumPieceSet): Promise<Entitlements>;
   restorePurchases(): Promise<Entitlements>;
 }
@@ -39,6 +40,7 @@ export class UnavailablePurchaseService implements PurchaseService {
   async products() { return []; }
   getEntitlements(): Promise<Entitlements> { return this.owned(); }
   async purchaseRemoveAds(): Promise<Entitlements> { throw new Error(this.unavailableReason); }
+  async purchaseEverything(): Promise<Entitlements> { throw new Error(this.unavailableReason); }
   async purchasePieceSet(_id: PremiumPieceSet): Promise<Entitlements> { throw new Error(this.unavailableReason); }
   async restorePurchases(): Promise<Entitlements> { throw new Error('Restore is unavailable in this build. No purchases were restored.'); }
 }

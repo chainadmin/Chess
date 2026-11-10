@@ -150,3 +150,10 @@ test('Android on-device fallback only trusts completed purchases of our products
   assert.equal(trustedDeviceGrant({ productId: 'free_gold', purchaseState: 'purchased' }), null);
   assert.equal(trustedDeviceGrant({ productId: 'remove_ads', purchaseState: 'purchased', packageNameAndroid: 'com.other.app' }), null);
 });
+
+test('the Everything Pack unlocks ads removal and both premium piece sets', async () => {
+  const { grantsFor, isProductId } = await import('../../services/purchases/products');
+  assert.equal(isProductId('bundle_everything'), true);
+  assert.deepEqual(grantsFor(['bundle_everything']), { adsRemoved: true, premiumPieceSets: ['modern', 'tournament'] });
+  assert.deepEqual(grantsFor(['pieces_forged_metal']), { adsRemoved: false, premiumPieceSets: ['modern'] });
+});

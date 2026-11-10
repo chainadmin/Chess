@@ -14,6 +14,8 @@ export const PRODUCT_IDS = {
   removeAds: 'remove_ads',
   forgedMetal: 'pieces_forged_metal',
   royalLacquer: 'pieces_royal_lacquer',
+  /** Everything Pack: Remove Ads + both premium piece sets. */
+  everything: 'bundle_everything',
 } as const;
 export type ProductId = typeof PRODUCT_IDS[keyof typeof PRODUCT_IDS];
 export const ALL_PRODUCT_IDS: readonly ProductId[] = Object.freeze(Object.values(PRODUCT_IDS));
@@ -32,8 +34,9 @@ export function isProductId(value: unknown): value is ProductId {
 /** Converts verified, unrevoked product IDs into what they unlock. */
 export function grantsFor(productIds: Iterable<string>): EntitlementGrant {
   const owned = new Set(productIds);
+  const everything = owned.has(PRODUCT_IDS.everything);
   return {
-    adsRemoved: owned.has(PRODUCT_IDS.removeAds),
-    premiumPieceSets: (Object.keys(PIECE_SET_PRODUCTS) as PremiumPieceSet[]).filter(id => owned.has(PIECE_SET_PRODUCTS[id])),
+    adsRemoved: everything || owned.has(PRODUCT_IDS.removeAds),
+    premiumPieceSets: (Object.keys(PIECE_SET_PRODUCTS) as PremiumPieceSet[]).filter(id => everything || owned.has(PIECE_SET_PRODUCTS[id])),
   };
 }

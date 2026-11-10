@@ -120,6 +120,7 @@ export class StorePurchaseService implements PurchaseService {
 
   async getEntitlements() { await entitlementStore.load(); return entitlementStore.get(); }
   purchaseRemoveAds() { return this.buy(PRODUCT_IDS.removeAds); }
+  purchaseEverything() { return this.buy(PRODUCT_IDS.everything); }
   purchasePieceSet(id: PremiumPieceSet) { return this.buy(PIECE_SET_PRODUCTS[id]); }
   async restorePurchases() { await this.init(); return this.restore(false); }
 }
