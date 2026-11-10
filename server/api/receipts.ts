@@ -1,5 +1,5 @@
 import { createHash, createSign, verify as verifySignature, X509Certificate } from 'node:crypto';
-import { isProductId, ProductId } from '../../src/services/purchases/products';
+import { APP_ID, isProductId, ProductId } from '../../src/services/purchases/products';
 
 export type VerifiedPurchase = { platform: 'ios' | 'android'; productId: ProductId; transactionId: string };
 export class ReceiptError extends Error {
@@ -104,15 +104,17 @@ export class GooglePlayVerifier {
 
 /** Builds the verifier from environment variables. Unconfigured platforms fail closed. */
 export function receiptVerifierFromEnv(env: NodeJS.ProcessEnv = process.env): ReceiptVerifier {
+  // The app's identity is fixed in app.json; the variables only override it.
+  const bundleId = env.APPLE_BUNDLE_ID || APP_ID;
+  const packageName = env.GOOGLE_PLAY_PACKAGE_NAME || APP_ID;
   let google: GooglePlayVerifier | undefined;
-  if (env.GOOGLE_PLAY_PACKAGE_NAME && env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-    google = new GooglePlayVerifier({ packageName: env.GOOGLE_PLAY_PACKAGE_NAME, serviceAccount: JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON) });
+  if (env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    google = new GooglePlayVerifier({ packageName, serviceAccount: JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON) });
   }
   return {
     async verify(platform, productId, purchaseToken) {
       if (platform === 'ios') {
-        if (!env.APPLE_BUNDLE_ID) throw new ReceiptError('not_configured', 'App Store purchases are not configured on the server.');
-        return verifyAppleTransaction(purchaseToken, productId, { bundleId: env.APPLE_BUNDLE_ID });
+        return verifyAppleTransaction(purchaseToken, productId, { bundleId });
       }
       if (!google) throw new ReceiptError('not_configured', 'Google Play purchases are not configured on the server.');
       return google.verify(productId, purchaseToken);

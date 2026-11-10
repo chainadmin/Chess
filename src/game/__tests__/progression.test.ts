@@ -141,3 +141,12 @@ test('ad storage failure and missing listeners never block gameplay', async () =
   assert.equal(await ads.recordCompletedGame(), false);
   assert.equal(await ads.maybeShowInterstitial('manual_test'), false);
 });
+
+test('Android on-device fallback only trusts completed purchases of our products for this app', async () => {
+  const { trustedDeviceGrant } = await import('../../services/purchases/billing');
+  assert.deepEqual(trustedDeviceGrant({ productId: 'remove_ads', purchaseState: 'purchased', packageNameAndroid: 'com.chainsoftwaregroup.shiftchess' }), { adsRemoved: true, premiumPieceSets: [] });
+  assert.deepEqual(trustedDeviceGrant({ productId: 'pieces_royal_lacquer', purchaseState: 'purchased' }), { adsRemoved: false, premiumPieceSets: ['tournament'] });
+  assert.equal(trustedDeviceGrant({ productId: 'remove_ads', purchaseState: 'pending' }), null);
+  assert.equal(trustedDeviceGrant({ productId: 'free_gold', purchaseState: 'purchased' }), null);
+  assert.equal(trustedDeviceGrant({ productId: 'remove_ads', purchaseState: 'purchased', packageNameAndroid: 'com.other.app' }), null);
+});

@@ -33,8 +33,9 @@ The two never call each other directly; the database is the only link. If Accoun
      - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
      - `PORT` = `8081` (must match the port shown on the service's domains)
      - `PUBLIC_URL` = `https://shiftchess.chain-developments.com`
-     - `PRIVACY_CONTACT_EMAIL`, `APPLE_BUNDLE_ID`, `POSTMARK_SERVER_TOKEN`, `EMAIL_FROM`
-     - Android only: `GOOGLE_PLAY_PACKAGE_NAME`, `GOOGLE_SERVICE_ACCOUNT_JSON`
+     - `PRIVACY_CONTACT_EMAIL`, `POSTMARK_SERVER_TOKEN`, `EMAIL_FROM`
+     - Android purchases only: `GOOGLE_SERVICE_ACCOUNT_JSON` (step 3)
+     - The app ID `com.chainsoftwaregroup.shiftchess` is built in; `APPLE_BUNDLE_ID` / `GOOGLE_PLAY_PACKAGE_NAME` are only needed if you change it.
    - Custom domain: `shiftchess.chain-developments.com`
 3. **Online service** (new): **+ New → GitHub Repo → this repository** (same repo, same branch `main`). Name it `online`.
    - Variables:
@@ -87,7 +88,7 @@ Create these three products with **exactly** these IDs, as **Non-Consumable** in
 Prices, names and descriptions are set in the stores; the app shows the store's localized price. Every purchase is verified by the accounts server before anything unlocks:
 
 - **iOS**: the StoreKit 2 signed transaction is checked offline against Apple's root certificate and must match `APPLE_BUNDLE_ID`. No Apple API key is needed. Sandbox and TestFlight purchases are accepted, because App Review buys in the sandbox.
-- **Android**: the server calls the Google Play Developer API. Create a Google Cloud service account, enable the *Google Play Android Developer API*, invite the service account in Play Console (Users and permissions → *View financial data*), and paste its JSON key into `GOOGLE_SERVICE_ACCOUNT_JSON`.
+- **Android**: works with **no setup**. Without a Google key, the app trusts Google Play's own confirmation on the phone; the purchase unlocks on that device and comes back with *Restore purchases*. Optional upgrade, no app update needed: create a Google Cloud service account, enable the *Google Play Android Developer API*, invite the service account in Play Console (Users and permissions → *View financial data*, *Manage orders and subscriptions*), and paste its JSON key into `GOOGLE_SERVICE_ACCOUNT_JSON` on the Accounts service. From then on the server verifies every Android purchase with Google and saves it to the player's account.
 
 Guests can buy too: the purchase unlocks on that device, and **Restore purchases** brings it back. Signed-in players also have purchases saved to their account.
 
