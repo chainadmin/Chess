@@ -33,8 +33,9 @@ The two never call each other directly; the database is the only link. If Accoun
      - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
      - `PORT` = `8081` (must match the port shown on the service's domains)
      - `PUBLIC_URL` = `https://shiftchess.chain-developments.com`
-     - `PRIVACY_CONTACT_EMAIL`, `APPLE_BUNDLE_ID`, `POSTMARK_SERVER_TOKEN`, `EMAIL_FROM`
-     - Android only: `GOOGLE_PLAY_PACKAGE_NAME`, `GOOGLE_SERVICE_ACCOUNT_JSON`
+     - `PRIVACY_CONTACT_EMAIL`, `POSTMARK_SERVER_TOKEN`, `EMAIL_FROM`
+     - Android purchases only: `GOOGLE_SERVICE_ACCOUNT_JSON` (step 3)
+     - The app ID `com.chainsoftwaregroup.shiftchess` is built in; `APPLE_BUNDLE_ID` / `GOOGLE_PLAY_PACKAGE_NAME` are only needed if you change it.
    - Custom domain: `shiftchess.chain-developments.com`
 3. **Online service** (new): **+ New → GitHub Repo → this repository** (same repo, same branch `main`). Name it `online`.
    - Variables:
