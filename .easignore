@@ -1,0 +1,30 @@
+# Files EAS Build leaves out of the upload. When this file exists, EAS uses it
+# INSTEAD of .gitignore, so it repeats everything from .gitignore.
+
+# --- same as .gitignore ---
+node_modules/
+.expo/
+dist/
+dist-web/
+web-build/
+*.log
+.DS_Store
+*.pem
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.env
+.env.local
+
+# --- Replit and tool caches (can hold read-only files that break the upload) ---
+.cache/
+.local/
+.config/
+.upm/
+.pythonlibs/
+.git/
+
+# --- not part of the phone app ---
+server/
+docs/
+scripts/
