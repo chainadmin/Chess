@@ -25,7 +25,7 @@ test('account clients play over long-poll and see opponent moves without polling
   const url = `http://127.0.0.1:${port}`;
   const token = async (name: string) => {
     const account = await store.createAccount(name, 'h');
-    if (account === 'taken') throw new Error();
+    if (typeof account === 'string') throw new Error();
     const value = newToken();
     await store.createSession(account.id, tokenDigest(value), Date.now() + 60_000);
     return value;

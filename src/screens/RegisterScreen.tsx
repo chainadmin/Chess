@@ -11,6 +11,7 @@ import { theme } from '../styles/theme';
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
 export function RegisterScreen({ navigation }: Props) {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -19,8 +20,9 @@ export function RegisterScreen({ navigation }: Props) {
     setBusy(true); setError('');
     try {
       if (password !== confirm) throw new Error('Passwords do not match.');
-      await authService.register(username, password);
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      const { recoveryCode } = await authService.register(username, password, email);
+      // Show the recovery code once before entering the app.
+      navigation.reset({ index: 0, routes: [{ name: 'RecoveryCode', params: { code: recoveryCode, then: 'Home' } }] });
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -31,6 +33,9 @@ export function RegisterScreen({ navigation }: Props) {
       <Text style={styles.label}>Username</Text>
       <TextInput style={styles.input} placeholder="Pick a username" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} autoComplete="username-new" textContentType="username" maxLength={20} value={username} onChangeText={setUsername} />
       <Text style={styles.hint}>{USERNAME_RULES}. Other players will see it.</Text>
+      <Text style={styles.label}>Email <Text style={styles.optional}>(optional)</Text></Text>
+      <TextInput style={styles.input} placeholder="For password resets only" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" value={email} onChangeText={setEmail} />
+      <Text style={styles.hint}>Never shown to other players. No marketing email.</Text>
       <Text style={styles.label}>Password</Text>
       <TextInput style={styles.input} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password-new" textContentType="newPassword" value={password} onChangeText={setPassword} />
       <Text style={styles.label}>Confirm Password</Text>
@@ -50,6 +55,7 @@ const styles = StyleSheet.create({
   form: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 16, borderWidth: 1, borderColor: theme.colors.borderSoft, marginBottom: 6 },
   label: { color: theme.colors.textFaint, fontSize: 12, fontWeight: '800', marginBottom: 6, marginTop: 8 },
   input: { backgroundColor: theme.colors.surfaceAlt, color: theme.colors.text, padding: 13, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border },
+  optional: { color: theme.colors.textDim, fontWeight: '600' },
   hint: { color: theme.colors.textDim, fontSize: 12, marginTop: 6 },
   legal: { color: theme.colors.textDim, textAlign: 'center', marginTop: 14, fontSize: 13, lineHeight: 19 },
   link: { color: theme.colors.text, textDecorationLine: 'underline' },

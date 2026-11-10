@@ -13,4 +13,7 @@ export type RootStackParamList = {
   Rules: undefined;
   Settings: undefined;
   Leaderboard: undefined;
+  ForgotPassword: undefined;
+  /** Shows a freshly issued recovery code once. `then` decides where Continue goes. */
+  RecoveryCode: { code: string; then: 'Home' | 'back' };
 };

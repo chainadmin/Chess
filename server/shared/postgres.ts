@@ -1,6 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { calculateRating, INITIAL_RATING } from '../../src/game/rating';
-import { Account, FinishedMatch, normalizeUsername, Profile, PurchaseRecord, Settlement, Store } from './store';
+import { Account, FinishedMatch, NewAccount, normalizeEmail, normalizeUsername, Profile, PurchaseRecord, Settlement, Store } from './store';
 
 const MIGRATION_LOCK = 724_031_117;
 const SCHEMA = `
@@ -47,13 +47,28 @@ CREATE TABLE IF NOT EXISTS purchases (
   PRIMARY KEY (platform, transaction_id)
 );
 CREATE INDEX IF NOT EXISTS purchases_user_idx ON purchases (user_id);
+-- v2: optional email for password resets, and one-time recovery codes.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS recovery_hash text;
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email) WHERE email IS NOT NULL;
+CREATE TABLE IF NOT EXISTS password_resets (
+  token_hash text PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS password_resets_user_idx ON password_resets (user_id);
 `;
 
 type UserRow = {
-  id: string; username: string; password_hash: string; created_at: Date;
+  id: string; username: string; password_hash: string; created_at: Date; email: string | null; recovery_hash: string | null;
   rating: number; games_played: number; wins: number; losses: number; draws: number;
 };
-const account = (row: UserRow): Account => ({ id: row.id, username: row.username, passwordHash: row.password_hash, createdAt: row.created_at.getTime() });
+const account = (row: UserRow): Account => ({
+  id: row.id, username: row.username, passwordHash: row.password_hash, createdAt: row.created_at.getTime(),
+  email: row.email, recoveryHash: row.recovery_hash,
+});
+const uniqueViolation = (error: unknown, constraint: string) =>
+  (error as { code?: string; constraint?: string }).code === '23505' && (error as { constraint?: string }).constraint === constraint;
 const profile = (row: UserRow): Profile => ({
   id: row.id, username: row.username, rating: row.rating, gamesPlayed: row.games_played,
   wins: row.wins, losses: row.losses, draws: row.draws, createdAt: row.created_at.getTime(),
@@ -84,11 +99,48 @@ export class PostgresStore implements Store {
     }
   }
 
-  async createAccount(username: string, passwordHash: string) {
-    const result = await this.pool.query<UserRow>(
-      `INSERT INTO users (username, username_key, password_hash) VALUES ($1, $2, $3)
-       ON CONFLICT (username_key) DO NOTHING RETURNING *`, [username, normalizeUsername(username), passwordHash]);
-    return result.rows[0] ? account(result.rows[0]) : 'taken' as const;
+  async createAccount(username: string, passwordHash: string, extra: NewAccount = { recoveryHash: '' }) {
+    try {
+      const result = await this.pool.query<UserRow>(
+        `INSERT INTO users (username, username_key, password_hash, email, recovery_hash) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (username_key) DO NOTHING RETURNING *`,
+        [username, normalizeUsername(username), passwordHash, extra.email ? normalizeEmail(extra.email) : null, extra.recoveryHash || null]);
+      return result.rows[0] ? account(result.rows[0]) : 'taken' as const;
+    } catch (error) {
+      if (uniqueViolation(error, 'users_email_idx')) return 'email_taken' as const;
+      throw error;
+    }
+  }
+  async findAccountByEmail(email: string) {
+    const result = await this.pool.query<UserRow>('SELECT * FROM users WHERE email = $1', [normalizeEmail(email)]);
+    return result.rows[0] ? account(result.rows[0]) : null;
+  }
+  async setEmail(userId: string, email: string | null) {
+    try {
+      await this.pool.query('UPDATE users SET email = $2 WHERE id = $1', [userId, email ? normalizeEmail(email) : null]);
+      return 'ok' as const;
+    } catch (error) {
+      if (uniqueViolation(error, 'users_email_idx')) return 'email_taken' as const;
+      throw error;
+    }
+  }
+  async setRecoveryHash(userId: string, recoveryHash: string) {
+    await this.pool.query('UPDATE users SET recovery_hash = $2 WHERE id = $1', [userId, recoveryHash]);
+  }
+  async createPasswordReset(userId: string, tokenHash: string, expiresAt: number) {
+    // Only the newest link works; old and expired ones are removed.
+    await this.pool.query('DELETE FROM password_resets WHERE user_id = $1 OR expires_at < now()', [userId]);
+    await this.pool.query('INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES ($1, $2, $3)', [tokenHash, userId, new Date(expiresAt)]);
+  }
+  async findPasswordReset(tokenHash: string, now: number) {
+    const result = await this.pool.query<{ user_id: string }>('SELECT user_id FROM password_resets WHERE token_hash = $1 AND expires_at > $2', [tokenHash, new Date(now)]);
+    return result.rows[0]?.user_id ?? null;
+  }
+  async consumePasswordReset(tokenHash: string, now: number) {
+    // DELETE ... RETURNING makes each link single-use even under concurrent submits.
+    const result = await this.pool.query<{ user_id: string; expires_at: Date }>('DELETE FROM password_resets WHERE token_hash = $1 RETURNING user_id, expires_at', [tokenHash]);
+    const row = result.rows[0];
+    return row && row.expires_at.getTime() > now ? row.user_id : null;
   }
   async findAccountByUsername(username: string) {
     const result = await this.pool.query<UserRow>('SELECT * FROM users WHERE username_key = $1', [normalizeUsername(username)]);
@@ -103,7 +155,7 @@ export class PostgresStore implements Store {
     await this.pool.query('UPDATE users SET password_hash = $2 WHERE id = $1', [userId, passwordHash]);
   }
   async deleteAccount(userId: string) {
-    // Sessions and purchases cascade; finished games keep the opponent's history with this player anonymized.
+    // Sessions, purchases and reset links cascade; finished games keep the opponent's history with this player anonymized.
     await this.pool.query('DELETE FROM users WHERE id = $1', [userId]);
   }
   async createSession(userId: string, tokenHash: string, expiresAt: number) {

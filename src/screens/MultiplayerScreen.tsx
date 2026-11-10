@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -8,10 +8,13 @@ import { AppButton } from '../components/AppButton';
 import { onlineClient, useOnlineState } from '../online/onlineService';
 import { authService, User } from '../services/auth/AuthService';
 import { theme } from '../styles/theme';
+import { PieceView } from '../components/PieceView';
+import { useAppearance } from '../appearance/useAppearance';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Multiplayer'>;
 export function MultiplayerScreen({ navigation }: Props) {
   const state = useOnlineState();
+  const { pieces } = useAppearance();
   const focused = useIsFocused();
   const [searching, setSearching] = useState(false);
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -48,65 +51,106 @@ export function MultiplayerScreen({ navigation }: Props) {
     setSearching(false);
     void onlineClient?.cancel().catch(() => undefined);
   }
-  return <Screen style={styles.screen}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <View style={styles.header}>
-      <Text style={styles.eyebrow}>REAL PLAYERS · ALWAYS FREE</Text>
-      <Text style={styles.title}>Online 3+2</Text>
-      <Text style={styles.intro}>A quick game. A human opponent. No paid access.</Text>
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!queued) { setElapsed(0); return; }
+    const started = Date.now();
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [queued]);
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!queued) { pulse.setValue(0); return; }
+    const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: Platform.OS !== 'web' }));
+    loop.start();
+    return () => loop.stop();
+  }, [queued, pulse]);
+  const me = user && !user.guest ? user : null;
+  const status = !onlineClient ? 'Online play is not set up in this build.'
+    : needsAccount ? 'Online games are rated, so you need a free username first.'
+    : queued ? `Searching for an opponent · ${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`
+    : 'You\'ll be paired with the next player who is looking.';
+
+  return <Screen><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.matchup} accessible accessibilityLabel={`${me ? me.displayName : 'You'} versus ${queued ? 'searching' : 'next opponent'}`}>
+      <View style={styles.side}>
+        <View style={[styles.avatar, styles.avatarMe]}><PieceView type="S" color="white" set={pieces} size={52} /></View>
+        <Text style={styles.name} numberOfLines={1}>{me ? me.displayName : 'You'}</Text>
+        <Text style={styles.rating}>{me?.profile ? me.profile.rating : needsAccount ? 'Guest' : '—'}</Text>
+      </View>
+      <View style={styles.vs}><Text style={styles.vsText}>VS</Text></View>
+      <View style={styles.side}>
+        <View style={styles.avatarWrap}>
+          {queued && <Animated.View pointerEvents="none" style={[styles.ring, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) }] }]} />}
+          <View style={styles.avatar}>{queued ? <ActivityIndicator color={theme.colors.cyan} /> : <Text style={styles.question}>?</Text>}</View>
+        </View>
+        <Text style={styles.name}>{queued ? 'Searching…' : 'Opponent'}</Text>
+        <Text style={styles.rating}>Real player</Text>
+      </View>
     </View>
+
     <View style={styles.controlCard}>
-      <View style={styles.controlHeader}><Text style={styles.controlLabel}>ONE ONLINE TIME CONTROL</Text><View style={styles.freeBadge}><Text style={styles.freeText}>Always free</Text></View></View>
-      <Text style={styles.clock}>3 <Text style={styles.plus}>+</Text> 2</Text><Text style={styles.controlName}>Blitz</Text>
-      <Text style={styles.controlDetail}>3 minutes per player, plus 2 seconds after each move.</Text>
+      <View>
+        <Text style={styles.clock}>3<Text style={styles.plus}> + </Text>2</Text>
+        <Text style={styles.controlName}>Blitz · Rated</Text>
+      </View>
+      <View style={styles.badges}>
+        <View style={styles.badge}><Text style={styles.badgeText}>3 min each</Text></View>
+        <View style={styles.badge}><Text style={styles.badgeText}>+2 s per move</Text></View>
+        <View style={[styles.badge, styles.freeBadge]}><Text style={[styles.badgeText, styles.freeText]}>Always free</Text></View>
+      </View>
     </View>
-    <View style={styles.statusCard}>
-      <Text style={styles.statusLabel}>{!onlineClient ? 'SERVER NOT CONFIGURED' : needsAccount ? 'FREE ACCOUNT NEEDED' : `RATED · ${user?.profile ? `YOUR RATING ${user.profile.rating}` : 'REAL PLAYERS'}`}</Text>
-      <Text style={styles.statusTitle}>{queued ? 'Looking for another player…' : !onlineClient ? 'Live matchmaking needs a server' : needsAccount ? 'Create an account to play online' : 'Find a real opponent'}</Text>
-      <Text style={styles.body}>{!onlineClient ? 'This build has no online server address. Local games work now.' : needsAccount ? 'Online games are rated, so each player needs a username. It is free and takes a few seconds.' : 'You will be paired with the next player looking for a game. No computer takes an empty seat.'}</Text>
-      {queued && <Text style={styles.body}>Keep this screen open while searching. You can cancel at any time.</Text>}
-      {state.error && <Text accessibilityRole="alert" style={styles.body}>{state.error}</Text>}
-    </View>
+
+    <Text accessibilityLiveRegion="polite" style={styles.status}>{status}</Text>
+    {state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
+
     {needsAccount && onlineClient ? <>
       <AppButton title="Create free account" onPress={() => navigation.navigate('Register')} />
-      <AppButton title="Login" secondary onPress={() => navigation.navigate('Login')} />
-    </> : queued || state.pending ? <AppButton title={state.pending && !searching ? 'Finishing request…' : 'Cancel search'} secondary onPress={cancel} disabled={state.pending && !searching} /> : <AppButton title={onlineClient ? 'Find a free 3+2 game' : 'Online server not configured'} onPress={join} disabled={!onlineClient || user === undefined} />}
+      <AppButton title="Log in" secondary onPress={() => navigation.navigate('Login')} />
+    </> : queued || state.pending ? <AppButton title={state.pending && !searching ? 'Finishing request…' : 'Cancel search'} secondary onPress={cancel} disabled={state.pending && !searching} /> : <AppButton title={onlineClient ? 'Find a game' : 'Online server not configured'} onPress={join} disabled={!onlineClient || user === undefined} />}
     {state.connection === 'reconnecting' && <AppButton title="Retry connection" secondary onPress={() => { void onlineClient?.sync().catch(() => undefined); }} disabled={state.pending} />}
     {online?.status === 'matched' && online.match.game.status !== 'active' && <AppButton title="View last game" secondary onPress={() => navigation.navigate('OnlineGame', { matchId: online.match.matchId })} />}
-    <Text style={styles.freePromise}>Online play will always be free. Optional purchases will be for removing ads and extra cosmetics.</Text>
-    <View style={styles.localSection}>
-      <Text style={styles.sectionTitle}>Play locally</Text><Text style={styles.localCopy}>Computer practice stays separate from human matchmaking.</Text>
-      <AppButton title="Practice against the computer" onPress={() => navigation.navigate('Game', { mode: 'local', computerDifficulty: 'medium' })} />
-      <Text style={styles.practiceDetail}>Medium difficulty · You play White · Offline</Text>
-      <AppButton title="Pass and Play" secondary onPress={() => navigation.navigate('Game', { mode: 'local' })} />
+    {queued && <Text style={styles.hint}>Keep this screen open. Most games start within a minute.</Text>}
+
+    <View style={styles.localRow}>
+      <Text style={styles.localLabel}>Rather practise first?</Text>
+      <View style={styles.localButtons}>
+        <Text accessibilityRole="link" style={styles.localLink} onPress={() => navigation.navigate('Game', { mode: 'local', computerDifficulty: 'medium' })}>Play the computer</Text>
+        <Text style={styles.dot}>·</Text>
+        <Text accessibilityRole="link" style={styles.localLink} onPress={() => navigation.navigate('DailyPuzzle')}>Daily puzzle</Text>
+      </View>
     </View>
   </ScrollView></Screen>;
 }
 
 const styles = StyleSheet.create({
-  screen: { padding: 0 },
-  content: { padding: 20, paddingBottom: 34 },
-  header: { marginTop: 8, marginBottom: 24 },
-  eyebrow: { color: theme.colors.cyan, fontSize: 11, fontWeight: '900', letterSpacing: 1.5, marginBottom: 8 },
-  title: { color: theme.colors.text, fontSize: 36, fontWeight: '900' },
-  intro: { color: theme.colors.textDim, fontSize: 14, lineHeight: 21, marginTop: 8 },
-  controlCard: { padding: 22, backgroundColor: theme.colors.surfaceAlt, borderWidth: 1, borderColor: theme.colors.accent, borderRadius: theme.radius.lg },
-  controlHeader: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' },
-  controlLabel: { color: theme.colors.textDim, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  freeBadge: { backgroundColor: theme.colors.accentSoft, borderRadius: theme.radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
-  freeText: { color: theme.colors.gold, fontSize: 12, fontWeight: '800' },
-  clock: { color: theme.colors.text, fontSize: 64, fontWeight: '900', marginTop: 12 },
+  content: { paddingBottom: 30 },
+  matchup: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: theme.colors.surface, borderRadius: theme.radius.xl, borderWidth: 1, borderColor: theme.colors.borderSoft, paddingVertical: 22, paddingHorizontal: 14, marginTop: 4 },
+  side: { flex: 1, alignItems: 'center' },
+  avatarWrap: { alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: theme.colors.surfaceAlt, borderWidth: 2, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' },
+  avatarMe: { borderColor: theme.colors.accent },
+  ring: { position: 'absolute', width: 76, height: 76, borderRadius: 38, borderWidth: 3, borderColor: theme.colors.cyan },
+  question: { color: theme.colors.textFaint, fontSize: 32, fontWeight: '900' },
+  name: { color: theme.colors.text, fontSize: 15, fontWeight: '900', marginTop: 10, maxWidth: 130 },
+  rating: { color: theme.colors.textFaint, fontSize: 13, fontWeight: '700', marginTop: 2 },
+  vs: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.bgBottom, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.border },
+  vsText: { color: theme.colors.accent, fontWeight: '900', fontSize: 14 },
+  controlCard: { marginTop: 14, padding: 18, backgroundColor: theme.colors.surfaceAlt, borderWidth: 1, borderColor: theme.colors.accent, borderRadius: theme.radius.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
+  clock: { color: theme.colors.text, fontSize: 44, fontWeight: '900', letterSpacing: -1 },
   plus: { color: theme.colors.accent },
-  controlName: { color: theme.colors.text, fontSize: 20, fontWeight: '800' },
-  controlDetail: { color: theme.colors.textDim, fontSize: 14, lineHeight: 21, marginTop: 6 },
-  statusCard: { padding: 18, marginTop: 20, marginBottom: 20, borderRadius: theme.radius.md, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderSoft },
-  statusLabel: { color: theme.colors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.3 },
-  statusTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '800', marginTop: 8 },
-  body: { color: theme.colors.textDim, fontSize: 13, lineHeight: 20, marginTop: 8 },
-  disabledButton: { minHeight: 58, padding: 16, borderRadius: 18, backgroundColor: theme.colors.surfaceAlt, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' },
-  disabledText: { color: theme.colors.textDim, fontSize: 16, fontWeight: '800', textAlign: 'center' },
-  freePromise: { color: theme.colors.textDim, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 12, paddingHorizontal: 8 },
-  localSection: { marginTop: 28, paddingTop: 22, borderTopWidth: 1, borderColor: theme.colors.borderSoft },
-  sectionTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '800' },
-  localCopy: { color: theme.colors.textDim, fontSize: 13, marginTop: 6, marginBottom: 8 },
-  practiceDetail: { color: theme.colors.textDim, fontSize: 11, textAlign: 'center', marginBottom: 4 },
+  controlName: { color: theme.colors.textDim, fontSize: 14, fontWeight: '800' },
+  badges: { gap: 6, alignItems: 'flex-end' },
+  badge: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeText: { color: theme.colors.textDim, fontSize: 12, fontWeight: '800' },
+  freeBadge: { backgroundColor: theme.colors.accentSoft },
+  freeText: { color: theme.colors.gold },
+  status: { color: theme.colors.text, fontSize: 15, fontWeight: '700', textAlign: 'center', marginTop: 18, marginBottom: 6, lineHeight: 21 },
+  error: { color: theme.colors.danger, textAlign: 'center', fontSize: 13, marginBottom: 6, lineHeight: 19 },
+  hint: { color: theme.colors.textFaint, textAlign: 'center', fontSize: 12, marginTop: 4 },
+  localRow: { marginTop: 26, paddingTop: 18, borderTopWidth: 1, borderColor: theme.colors.borderSoft, alignItems: 'center' },
+  localLabel: { color: theme.colors.textDim, fontSize: 13, fontWeight: '700' },
+  localButtons: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  localLink: { color: theme.colors.cyan, fontSize: 14, fontWeight: '800', paddingVertical: 6 },
+  dot: { color: theme.colors.textFaint, paddingVertical: 6 },
 });

@@ -1,40 +1,59 @@
 import React from 'react';
-import { Text, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
 import { PieceView } from '../components/PieceView';
+import { LancerShowcase } from '../components/LancerShowcase';
 import { useAppearance } from '../appearance/useAppearance';
-import { PIECE_ORDER } from '../appearance/catalog';
 import { AppButton } from '../components/AppButton';
 import { authService } from '../services/auth/AuthService';
 import { theme } from '../styles/theme';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
+
 export function WelcomeScreen({ navigation }: Props) {
   const { pieces } = useAppearance();
-  const guest = async () => { await authService.continueAsGuest(); navigation.replace('Home'); };
-  return <Screen style={styles.center}>
-    <View style={styles.logo}><PieceView type="S" color="white" set={pieces} size={80} /></View>
-    <Text style={styles.title}>ShiftChess</Text>
-    <Text style={styles.subtitle}>10×8 chess with the Lancer, a new piece, a new game.</Text>
-    <View style={styles.pieceRow}>
-      {PIECE_ORDER.map(type => <PieceView key={type} type={type} color="white" set={pieces} size={32} label />)}
+  // Lowest-friction start: play straight away, sign up later for online games.
+  const playNow = async () => { await authService.continueAsGuest(); navigation.replace('Home'); };
+  return <Screen><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.brand}>
+      <View style={styles.mark}><PieceView type="S" color="white" set={pieces} size={26} /></View>
+      <Text style={styles.wordmark}>ShiftChess</Text>
     </View>
-    <View style={styles.buttons}>
-      <AppButton title="Login" onPress={() => navigation.navigate('Login')} />
-      <AppButton title="Register" onPress={() => navigation.navigate('Register')} secondary />
-      <AppButton title="Continue as Guest" onPress={guest} secondary />
+
+    <Text style={styles.headline}>Chess, with a{'\n'}<Text style={styles.highlight}>new piece.</Text></Text>
+    <Text style={styles.sub}>A wider 10×8 board and the <Text style={styles.strong}>Lancer</Text>: it slides like a bishop and steps one square straight. Same chess you know, brand-new tactics.</Text>
+
+    <View style={styles.boardCard}><LancerShowcase /></View>
+
+    <View style={styles.perks}>
+      {['Daily puzzles', 'Play the computer', 'Rated online games'].map(perk =>
+        <View key={perk} style={styles.perk}><Text style={styles.perkText}>✓ {perk}</Text></View>)}
     </View>
-  </Screen>;
+
+    <AppButton title="Play now" onPress={() => { void playNow(); }} />
+    {authService.accountsAvailable && <>
+      <AppButton title="Create free account" secondary onPress={() => navigation.navigate('Register')} />
+      <Text style={styles.login}>Already have an account? <Text accessibilityRole="link" style={styles.loginLink} onPress={() => navigation.navigate('Login')}>Log in</Text></Text>
+    </>}
+  </ScrollView></Screen>;
 }
+
 const styles = StyleSheet.create({
-  center: { justifyContent: 'center' },
-  logo: { alignSelf: 'center', width: 96, height: 96, borderRadius: 30, backgroundColor: theme.colors.cyan, alignItems: 'center', justifyContent: 'center', shadowColor: theme.colors.cyan, shadowOpacity: 0.5, shadowRadius: 20, elevation: 6 },
-  logoText: { fontSize: 52, color: '#0c1613' },
-  title: { fontSize: 44, fontWeight: '900', color: theme.colors.text, textAlign: 'center', marginTop: 18, letterSpacing: -1 },
-  subtitle: { color: theme.colors.textDim, textAlign: 'center', marginTop: 8, marginBottom: 22, fontSize: 15, paddingHorizontal: 12 },
-  pieceRow: { flexDirection: 'row', justifyContent: 'center', gap: 4, marginBottom: 30 },
-  previewPiece: { fontSize: 26, color: theme.colors.text, opacity: 0.85 },
-  previewLancer: { color: '#071018', backgroundColor: theme.colors.cyan, borderRadius: 8, paddingHorizontal: 6, opacity: 1, fontWeight: '900' },
-  buttons: { paddingHorizontal: 6 },
+  content: { flexGrow: 1, justifyContent: 'center', paddingVertical: 12 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 },
+  mark: { width: 38, height: 38, borderRadius: 12, backgroundColor: theme.colors.cyan, alignItems: 'center', justifyContent: 'center' },
+  wordmark: { color: theme.colors.text, fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
+  headline: { color: theme.colors.text, fontSize: 40, lineHeight: 44, fontWeight: '900', letterSpacing: -1 },
+  highlight: { color: theme.colors.accent },
+  sub: { color: theme.colors.textDim, fontSize: 15, lineHeight: 22, marginTop: 10 },
+  strong: { color: theme.colors.text, fontWeight: '800' },
+  boardCard: { marginTop: 20, marginBottom: 16, padding: 10, borderRadius: theme.radius.lg, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderSoft,
+    shadowColor: theme.colors.cyan, shadowOpacity: 0.18, shadowRadius: 24, elevation: 4 },
+  perks: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 14 },
+  perk: { backgroundColor: theme.colors.accentSoft, borderRadius: theme.radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  perkText: { color: theme.colors.gold, fontSize: 12, fontWeight: '800' },
+  login: { color: theme.colors.textDim, textAlign: 'center', marginTop: 10, fontSize: 14 },
+  loginLink: { color: theme.colors.cyan, fontWeight: '800' },
 });

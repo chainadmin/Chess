@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { createServer, IncomingMessage, ServerResponse } from 'node:http';
+import { createServer, IncomingMessage, RequestListener, ServerResponse } from 'node:http';
 import { OnlineAuthority } from '../src/online/OnlineAuthority';
 import { AuthenticatedPlayer, OnlineError, OnlineState, parseOnlineCommand } from '../src/online/protocol';
 import { clientAddress } from './shared/http';
@@ -242,8 +242,17 @@ export function createOnlineServer(options: ServerOptions = {}) {
   server.maxConnections = positive(options.maxConnections ?? 100, 'maxConnections');
   server.keepAliveTimeout = 5000;
   server.setTimeout(Math.max(10_000, longPollMax + 10_000), socket => socket.destroy());
+  /** Clock ticks and expiry sweeps. listen() starts them; a combined server calls this itself. */
+  const startTimers = () => {
+    if (timer) return;
+    timer = setInterval(() => { sweep(); authority.tick(); }, 250);
+    timer.unref();
+  };
   return {
     server,
+    /** The request handler, for mounting inside another HTTP server (see server/main.ts). */
+    handle: server.listeners('request')[0] as RequestListener,
+    startTimers,
     async listen() {
       if (closed || server.listening) throw new Error('Server is already started or closed.');
       const port = options.port ?? 8787;
@@ -252,8 +261,7 @@ export function createOnlineServer(options: ServerOptions = {}) {
         server.once('error', reject);
         server.listen(port, options.host ?? '127.0.0.1', () => { server.off('error', reject); resolve(); });
       });
-      timer = setInterval(() => { sweep(); authority.tick(); }, 250);
-      timer.unref();
+      startTimers();
       const address = server.address();
       if (!address || typeof address === 'string') throw new Error('Missing TCP address.');
       return { host: address.address, port: address.port };

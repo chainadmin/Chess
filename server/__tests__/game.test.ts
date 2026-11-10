@@ -26,7 +26,7 @@ async function setup(t: test.TestContext) {
   const url = `http://127.0.0.1:${port}`;
   const player = async (username: string) => {
     const account = await store.createAccount(username, 'hash');
-    if (account === 'taken') throw new Error('taken');
+    if (typeof account === 'string') throw new Error('taken');
     const token = newToken();
     await store.createSession(account.id, tokenDigest(token), Date.now() + 60_000);
     return { account, token };
@@ -103,7 +103,7 @@ test('a long-poll with no change returns the unchanged state after the wait', as
 test('settlement is idempotent and ratings move by the Elo formula', async () => {
   const store = new MemoryStore();
   const a = await store.createAccount('one', 'h'), b = await store.createAccount('two', 'h');
-  if (a === 'taken' || b === 'taken') throw new Error();
+  if (typeof a === 'string' || typeof b === 'string') throw new Error();
   const first = await store.settleMatch({ matchId: 'x', whiteId: a.id, blackId: b.id, outcome: 'draw', reason: 'stalemate', moves: [] });
   assert.deepEqual(first, { white: { before: 1200, after: 1200 }, black: { before: 1200, after: 1200 } });
   assert.equal(await store.settleMatch({ matchId: 'x', whiteId: a.id, blackId: b.id, outcome: 'white', reason: 'checkmate', moves: [] }), 'duplicate');

@@ -6,13 +6,14 @@ import { tokenStorage } from './tokenStorage';
 
 export type Profile = { id: string; username: string; rating: number; gamesPlayed: number; wins: number; losses: number; draws: number };
 /** A signed-in account (guest: false) or an offline guest on this device. */
-export type User = { id: string; guest: boolean; displayName: string; profile?: Profile };
-type SessionResponse = { token: string; expiresAt: number; user: Profile; entitlements: EntitlementGrant };
+export type User = { id: string; guest: boolean; displayName: string; profile?: Profile; email?: string | null };
+type SessionResponse = { token: string; expiresAt: number; user: Profile; entitlements: EntitlementGrant; recoveryCode?: string; email?: string | null };
 
 export const USERNAME_RULES = '3–20 letters, numbers or underscores';
 export const MIN_PASSWORD_LENGTH = 8;
 
-const fromProfile = (profile: Profile): User => ({ id: profile.id, guest: false, displayName: profile.username, profile });
+const fromProfile = (profile: Profile, email?: string | null): User => ({ id: profile.id, guest: false, displayName: profile.username, profile, email: email ?? null });
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 type Listener = (user: User | null) => void;
 
@@ -45,21 +46,46 @@ class AuthService {
   }
   token(): Promise<string | null> { return tokenStorage.get(); }
 
-  private async begin(path: '/auth/register' | '/auth/login', username: string, password: string) {
-    const session = await api<SessionResponse>('POST', path, { body: { username: username.trim(), password } });
+  private async begin(path: '/auth/register' | '/auth/login' | '/auth/recover', body: Record<string, string>) {
+    const session = await api<SessionResponse>('POST', path, { body });
     await tokenStorage.set(session.token);
-    const user = fromProfile(session.user);
+    const user = fromProfile(session.user, session.email);
     await this.publish(user);
-    return { user, entitlements: session.entitlements };
+    return { user, entitlements: session.entitlements, recoveryCode: session.recoveryCode };
   }
-  async register(username: string, password: string) {
+  /** Returns the one-time recovery code the player must save. */
+  async register(username: string, password: string, email = '') {
     if (!/^[A-Za-z0-9_]{3,20}$/.test(username.trim())) throw new Error(`Usernames are ${USERNAME_RULES}.`);
     if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`Passwords need at least ${MIN_PASSWORD_LENGTH} characters.`);
-    return (await this.begin('/auth/register', username, password)).user;
+    if (email.trim() && !EMAIL_PATTERN.test(email.trim())) throw new Error('Enter a valid email address, or leave it empty.');
+    const result = await this.begin('/auth/register', { username: username.trim(), password, ...(email.trim() ? { email: email.trim() } : {}) });
+    return { user: result.user, recoveryCode: result.recoveryCode ?? '' };
+  }
+  /** Emails a reset link if the account has an email. Same answer either way. */
+  async forgotPassword(login: string) {
+    if (!login.trim()) throw new Error('Enter your username or email.');
+    return (await api<{ message: string }>('POST', '/auth/forgot', { body: { login: login.trim() } })).message;
+  }
+  /** Resets the password with a recovery code, signs in, and returns the NEW recovery code. */
+  async recoverWithCode(username: string, recoveryCode: string, newPassword: string) {
+    if (!username.trim() || !recoveryCode.trim()) throw new Error('Enter your username and recovery code.');
+    if (newPassword.length < MIN_PASSWORD_LENGTH) throw new Error(`Passwords need at least ${MIN_PASSWORD_LENGTH} characters.`);
+    const result = await this.begin('/auth/recover', { username: username.trim(), recoveryCode: recoveryCode.trim(), newPassword });
+    return result.recoveryCode ?? '';
+  }
+  async setEmail(email: string, password: string) {
+    if (email.trim() && !EMAIL_PATTERN.test(email.trim())) throw new Error('Enter a valid email address.');
+    const result = await api<{ email: string | null }>('POST', '/me/email', { token: await this.token(), body: { email: email.trim() || null, password } });
+    const current = await this.currentUser();
+    if (current && !current.guest) await this.publish({ ...current, email: result.email });
+    return result.email;
+  }
+  async newRecoveryCode(password: string) {
+    return (await api<{ recoveryCode: string }>('POST', '/me/recovery-code', { token: await this.token(), body: { password } })).recoveryCode;
   }
   async login(username: string, password: string) {
     if (!username.trim() || !password) throw new Error('Enter your username and password.');
-    return (await this.begin('/auth/login', username, password)).user;
+    return (await this.begin('/auth/login', { username: username.trim(), password })).user;
   }
   async continueAsGuest() {
     const user: User = { id: `guest-${Date.now()}`, guest: true, displayName: 'Guest' };
@@ -74,8 +100,8 @@ class AuthService {
     const token = await this.token();
     if (!current || current.guest || !token) return { user: current };
     try {
-      const me = await api<{ user: Profile; entitlements: EntitlementGrant }>('GET', '/me', { token });
-      const user = fromProfile(me.user);
+      const me = await api<{ user: Profile; email?: string | null; entitlements: EntitlementGrant }>('GET', '/me', { token });
+      const user = fromProfile(me.user, me.email);
       await this.publish(user);
       return { user, entitlements: me.entitlements };
     } catch (error) {

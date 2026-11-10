@@ -101,10 +101,10 @@ Players create an account with a **username and password** on the accounts serve
 
 ### Online play and ratings
 
-Two Railway services share one Postgres database:
+One Railway service (`server/main.ts`) with a Postgres database runs everything on one address:
 
-- **Accounts API** (`server/api`): register/login/logout, `/me`, leaderboard, purchase verification, account deletion, and the public `/privacy` and `/account-deletion` pages.
-- **Game server** (`server/game` + `server/httpServer.ts`): matchmaking and live 3+2 games. It verifies account tokens (cached for a minute so polling never waits on the database), long-polls so opponents' moves arrive immediately, and settles each finished game into Elo ratings in one transaction.
+- **Accounts** (`server/api`): register/login/logout, `/me`, leaderboard, purchase verification, password resets (Postmark email link or recovery code), account deletion, and the public `/privacy`, `/account-deletion` and `/reset-password` pages.
+- **Online games** (`server/httpServer.ts`, `POST /command`): matchmaking and live 3+2 games. It verifies account tokens (cached for a minute so play never waits on the database), long-polls so opponents' moves arrive immediately, and settles each finished game into Elo ratings in one transaction.
 
 The server owns legal moves, clocks and results; the earlier safeguards (request IDs, stale-revision checks, rate limits, exact-origin CORS, capacity limits) still apply. Behind Railway's proxy, rate limits use the client address the proxy forwards (`TRUST_PROXY_HOPS=1`).
 

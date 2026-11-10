@@ -3,10 +3,10 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "server/Dockerfile",
-    "watchPatterns": ["server/**", "src/game/**", "src/online/**", "src/services/purchases/products.ts", "railway/api.json"]
+    "watchPatterns": ["server/**", "src/game/**", "src/online/**", "src/services/purchases/products.ts", "railway.json"]
   },
   "deploy": {
-    "startCommand": "node --import tsx api/index.ts",
+    "startCommand": "node --import tsx main.ts",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 60,
     "numReplicas": 1,

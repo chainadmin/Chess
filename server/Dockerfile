@@ -1,5 +1,4 @@
-# Shared image for both Railway services. Build context: repository root.
-# Railway sets the start command per service (see railway/*.json).
+# The ShiftChess Railway service (accounts + online games). Build context: repository root.
 FROM node:22-slim
 WORKDIR /app/server
 COPY server/package.json server/package-lock.json ./
@@ -13,4 +12,4 @@ RUN printf '{"compilerOptions":{"strict":true,"target":"ES2022","module":"ESNext
  && rm -rf __tests__ ../src/game/__tests__
 ENV NODE_ENV=production
 USER node
-CMD ["node", "--import", "tsx", "api/index.ts"]
+CMD ["node", "--import", "tsx", "main.ts"]
