@@ -27,7 +27,7 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://shiftchess.chain-developments.com",
-        "EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS": "ca-app-pub-REPLACE/REPLACE",
+        "EXPO_PUBLIC_ADMOB_INTERSTITIAL_IOS": "ca-app-pub-1580761947831808/8229114772",
         "EXPO_PUBLIC_ADMOB_INTERSTITIAL_ANDROID": "ca-app-pub-1580761947831808/9294930227",
         "EXPO_PUBLIC_GAME_URL": "https://shiftchess-online.chain-developments.com"
       }
