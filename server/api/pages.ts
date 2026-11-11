@@ -147,3 +147,45 @@ export function resetInvalidPage(options: PageOptions = {}) {
 <p>Password-reset links work once and only for one hour. Open ${app}, tap <strong>Forgot password?</strong> on the login screen, and ask for a new link.</p>
 <p class="muted">You can also reset your password with your recovery code.</p>`);
 }
+
+/** Public home page: the "Website" / "Marketing URL" for the store listings. */
+export function homePage(options: PageOptions = {}) {
+  const owner = escape(options.owner ?? 'Chain Software Group');
+  const app = escape(options.appName ?? 'ShiftChess');
+  return layout(options.appName ?? 'ShiftChess', `
+<h1>${app}</h1>
+<p class="muted">Chess, with a new piece. By ${owner}.</p>
+<p>${app} is chess on a wider 10×8 board with a brand-new piece, the <strong>Lancer</strong>: it slides diagonally like a bishop or steps one square straight up, down, left or right.</p>
+<ul>
+<li>Play the computer at three levels, or pass-and-play with a friend</li>
+<li>A new tactical puzzle every day</li>
+<li>Rated online 3+2 games against real players, always free</li>
+<li>Collectible boards and piece sets</li>
+</ul>
+<p>Available on the App Store and Google Play.</p>
+<h2>Links</h2>
+<ul>
+<li><a href="/support">Support</a></li>
+<li><a href="/privacy">Privacy policy</a></li>
+<li><a href="/account-deletion">Delete your account</a></li>
+</ul>`);
+}
+
+/** Support page: the "Support URL" App Store Connect requires. */
+export function supportPage(options: PageOptions = {}) {
+  const owner = escape(options.owner ?? 'Chain Software Group');
+  const app = escape(options.appName ?? 'ShiftChess');
+  const contact = options.contactEmail
+    ? `<a href="mailto:${escape(options.contactEmail)}">${escape(options.contactEmail)}</a>`
+    : 'the support contact on our App Store or Google Play page';
+  return layout(`${options.appName ?? 'ShiftChess'} Support`, `
+<h1>${app} Support</h1>
+<p>Need help? Email ${contact}. Include your username and your phone model, and we'll get back to you.</p>
+<h2>Common questions</h2>
+<p><strong>I forgot my password.</strong> On the login screen tap <em>Forgot password?</em>. You can get a reset link by email (if you added one) or use the recovery code you saved when you signed up.</p>
+<p><strong>My purchase isn't showing.</strong> Open Settings in the app and tap <em>Restore purchases</em> while signed in to the same App Store or Google Play account you bought with.</p>
+<p><strong>How do I remove ads?</strong> Settings → <em>Remove ads</em>, or get the Everything Pack.</p>
+<p><strong>How does the Lancer move?</strong> Diagonally any distance like a bishop, or exactly one square up, down, left or right. It can capture either way.</p>
+<p><strong>How do I delete my account?</strong> Settings → Account → <em>Delete account</em>. See <a href="/account-deletion">account deletion</a>.</p>
+<p class="muted">${app} by ${owner} · <a href="/privacy">Privacy policy</a></p>`);
+}

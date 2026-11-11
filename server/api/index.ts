@@ -19,6 +19,7 @@ export async function runAccounts() {
     // Base address for reset links. Railway provides RAILWAY_PUBLIC_DOMAIN once a domain is generated.
     publicUrl: process.env.PUBLIC_URL ?? (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${envInt('PORT', 8080)}`),
     pages: { owner: process.env.APP_OWNER ?? 'Chain Software Group', appName: 'ShiftChess', contactEmail: process.env.PRIVACY_CONTACT_EMAIL || undefined },
+      appAdsTxt: process.env.APP_ADS_TXT || undefined,
   });
   const { host, port } = await app.listen();
   console.log(`ShiftChess accounts API listening on ${host}:${port}`);
