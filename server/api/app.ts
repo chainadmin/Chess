@@ -9,7 +9,7 @@ import {
 } from '../shared/passwords';
 import { Account, Store } from '../shared/store';
 import { EMAIL_PATTERN, Mailer, newRecoveryCode, recoveryDigest, resetEmail } from './mailer';
-import { accountDeletionPage, PageOptions, privacyPage, resetDonePage, resetFormPage, resetInvalidPage } from './pages';
+import { accountDeletionPage, homePage, PageOptions, privacyPage, resetDonePage, resetFormPage, resetInvalidPage, supportPage, termsPage } from './pages';
 import { ReceiptError, ReceiptVerifier } from './receipts';
 
 export type ApiOptions = {
@@ -24,6 +24,8 @@ export type ApiOptions = {
   failedLoginsPerUsername?: number;
   maxRateKeys?: number; maxBodyBytes?: number;
   pages?: PageOptions;
+  /** Body of /app-ads.txt (AdMob seller verification). */
+  appAdsTxt?: string;
   /** Sends password-reset emails. Without one, email resets answer "not configured". */
   mailer?: Mailer;
   /** Public https origin of this service, used in reset links. */
@@ -34,6 +36,8 @@ export type ApiOptions = {
 
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000;
 const FAILED_LOGIN_WINDOW = 15 * 60 * 1000;
+/** AdMob publisher ID pub-1580761947831808; f08c47fec0942fa0 is Google's fixed certification authority ID. */
+export const DEFAULT_APP_ADS_TXT = 'google.com, pub-1580761947831808, DIRECT, f08c47fec0942fa0';
 const RESET_TTL = 60 * 60 * 1000;
 const RESET_EMAIL_COOLDOWN = 60 * 1000;
 const sameDigest = (a: string, b: string | null) => !!b && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -129,8 +133,14 @@ export function createApiServer(options: ApiOptions) {
 
   const routes: Record<string, (req: IncomingMessage, res: ServerResponse, rate: { auth: Window; purchases: Window }) => Promise<void>> = {
     'GET /health': async (_req, res) => sendJson(res, 200, { ok: true, service: 'accounts' }),
-    'GET /': async (_req, res) => { res.writeHead(302, { Location: '/privacy' }); res.end(); },
+    'GET /': async (_req, res) => sendHtml(res, homePage(options.pages)),
+    'GET /support': async (_req, res) => sendHtml(res, supportPage(options.pages)),
+    'GET /app-ads.txt': async (_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
+      res.end(`${(options.appAdsTxt ?? DEFAULT_APP_ADS_TXT).trim()}\n`);
+    },
     'GET /privacy': async (_req, res) => sendHtml(res, privacy),
+    'GET /terms': async (_req, res) => sendHtml(res, termsPage(options.pages)),
     'GET /account-deletion': async (_req, res) => sendHtml(res, deletion),
 
     'POST /auth/register': async (req, res, rate) => {
@@ -297,7 +307,7 @@ export function createApiServer(options: ApiOptions) {
       res.setHeader('Vary', 'Origin');
       const origin = req.headers.origin;
       const path = (req.url ?? '/').split('?')[0];
-      const page = ['/', '/privacy', '/account-deletion', '/health', '/reset-password'].includes(path) && (req.method === 'GET' || path === '/reset-password');
+      const page = ['/', '/privacy', '/terms', '/account-deletion', '/support', '/app-ads.txt', '/health', '/reset-password'].includes(path) && (req.method === 'GET' || path === '/reset-password');
       if (origin && !page) {
         if (!origins.has(origin)) throw new HttpError(403, 'origin_denied', 'Origin is not allowed.');
         res.setHeader('Access-Control-Allow-Origin', origin);

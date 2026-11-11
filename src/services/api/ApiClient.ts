@@ -8,6 +8,7 @@ export const API_URL = onlineServerUrl(process.env.EXPO_PUBLIC_API_URL, developm
 /** Online games use the same server unless a separate game server is configured (optional). */
 export const GAME_URL = onlineServerUrl(process.env.EXPO_PUBLIC_GAME_URL ?? process.env.EXPO_PUBLIC_ONLINE_URL, development) ?? API_URL;
 export const PRIVACY_URL = API_URL ? `${API_URL}/privacy` : null;
+export const TERMS_URL = API_URL ? `${API_URL}/terms` : null;
 
 export class ApiError extends Error {
   constructor(readonly code: string, message: string, readonly status: number) { super(message); }

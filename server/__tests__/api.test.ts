@@ -109,7 +109,7 @@ test('privacy and account deletion pages name the owner and are public', async t
   assert.match(privacy.body, /AdMob/);
   const deletion = await call('GET', '/account-deletion');
   assert.match(deletion.body, /Delete account/);
-  assert.equal((await call('GET', '/')).status, 200); // follows redirect to /privacy
+  assert.equal((await call('GET', '/')).status, 200);
   assert.equal((await call('GET', '/me', undefined, undefined, { Origin: 'https://elsewhere.example' })).status, 403);
 });
 
@@ -151,4 +151,23 @@ test('leaderboard lists rated players without private fields', async t => {
   assert.deepEqual(board.body.players.map((p: any) => p.username), ['alpha', 'bravo']);
   assert.equal(board.body.players[0].id, undefined);
   assert.ok(board.body.players[0].rating > 1200);
+});
+
+test('home, support and app-ads.txt are public for store listings and AdMob', async t => {
+  const { call } = await setup(t, { pages: { owner: 'Chain Software Group', contactEmail: 'help@example.com' } });
+  const home = await call('GET', '/', undefined, undefined, { Origin: 'https://anywhere.example' });
+  assert.equal(home.status, 200);
+  assert.match(home.body, /Lancer/);
+  const terms = await call('GET', '/terms', undefined, undefined, { Origin: 'https://anywhere.example' });
+  assert.equal(terms.status, 200);
+  assert.match(terms.body, /Terms of Service/);
+  assert.match(terms.body, /Chain Software Group/);
+  assert.match(terms.body, /third-party beneficiaries/);
+  const support = await call('GET', '/support');
+  assert.match(support.body, /help@example\.com/);
+  assert.match(support.body, /Restore purchases/);
+  const ads = await call('GET', '/app-ads.txt', undefined, undefined, { Origin: 'https://anywhere.example' });
+  assert.equal(ads.status, 200);
+  assert.match(ads.headers.get('content-type') ?? '', /text\/plain/);
+  assert.equal(ads.body, 'google.com, pub-1580761947831808, DIRECT, f08c47fec0942fa0\n');
 });
