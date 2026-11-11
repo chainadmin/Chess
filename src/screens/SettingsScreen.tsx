@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Text, StyleSheet, Switch, View, ScrollView, Pressable, Modal, TextInput, Linking } from 'react-native';
+import { Alert, Text, StyleSheet, Switch, View, ScrollView, Pressable, Modal, TextInput, Linking } from 'react-native';
 import { useFocusEffect, CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -79,6 +79,14 @@ export function SettingsScreen({ navigation }: Props) {
   useFocusEffect(load);
   const toggle = async (v: boolean) => { setSound(v); await soundService.setEnabled(v); };
   const logout = async () => { await authService.logout(); navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Welcome' }] })); };
+  /** Locked choices explain how to get them instead of silently ignoring the tap. */
+  const explainLocked = (name: string, access: typeof BOARD_ACCESS[BoardThemeId]) => {
+    if (access.kind === 'level') {
+      Alert.alert(`${name} is locked`, `It unlocks at practice level ${access.level}. You're level ${progress.level}.\n\nEarn XP by finishing games against the computer or pass-and-play (25 XP, +25 for a win) and by solving the daily puzzle (30 XP).`);
+    } else if (access.kind === 'premium') {
+      Alert.alert(`${name} is a premium set`, purchaseService.available ? 'Tap the Buy button under it, or get the Everything Pack, to unlock it.' : purchaseService.unavailableReason);
+    }
+  };
   return <Screen>
     <ScrollView contentContainerStyle={styles.content}>
     <Text style={styles.title}>Settings</Text>
@@ -114,13 +122,13 @@ export function SettingsScreen({ navigation }: Props) {
         const usable = canUseCosmetic(BOARD_ACCESS[id], progress.level, owned);
         const label = cosmeticLabel(BOARD_ACCESS[id], progress.level);
         return <Pressable key={id} testID={`board-choice-${id}`} accessibilityRole="radio" accessibilityLabel={`${board.name} board, ${board.description}, ${label}`}
-          accessibilityState={{ checked: selected, disabled: !appearance.loaded || !usable }} disabled={!appearance.loaded || !usable}
-          onPress={() => { void appearance.updateAppearance({ board: id }); }}
-          style={[styles.boardChoice, selected && styles.chosen]}>
+          accessibilityState={{ checked: selected, disabled: !usable }}
+          onPress={() => { if (usable) void appearance.updateAppearance({ board: id }); else explainLocked(`${board.name} board`, BOARD_ACCESS[id]); }}
+          style={({ pressed }) => [styles.boardChoice, !usable && styles.lockedChoice, selected && styles.chosen, pressed && styles.pressedChoice]}>
           <View style={styles.swatches} accessible={false}>{[board.light, board.dark, board.light, board.dark].map((color, i) => <View key={i} style={[styles.swatch, { backgroundColor: color }]} />)}</View>
           <Text style={styles.choiceTitle}>{board.name}{selected ? ' ✓' : ''}</Text>
           <Text style={styles.note}>{board.description}</Text>
-          <Text style={usable ? styles.unlocked : styles.locked}>{label}</Text>
+          <Text style={usable ? styles.unlocked : styles.locked}>{usable ? label : `🔒 ${label}`}</Text>
         </Pressable>;
       })}
     </View>
@@ -136,13 +144,13 @@ export function SettingsScreen({ navigation }: Props) {
         const productId = access.kind === 'premium' ? PIECE_SET_PRODUCTS[access.product] : undefined;
         const label = premium ? (usable ? 'Owned' : price(productId!) ? `Premium · ${price(productId!)}` : 'Premium collection') : cosmeticLabel(access, progress.level);
         return <Pressable key={id} testID={`piece-choice-${id}`} accessibilityRole="radio" accessibilityLabel={`${set.name} pieces, ${set.description}, ${label}`}
-          accessibilityState={{ checked: selected, disabled: !appearance.loaded || !usable }} disabled={!appearance.loaded || !usable}
-          onPress={() => { void appearance.updateAppearance({ pieces: id }); }}
-          style={[styles.pieceChoice, premium && styles.premiumChoice, selected && styles.chosen]}>
+          accessibilityState={{ checked: selected, disabled: !usable }}
+          onPress={() => { if (usable) void appearance.updateAppearance({ pieces: id }); else explainLocked(set.name, access); }}
+          style={({ pressed }) => [styles.pieceChoice, premium && styles.premiumChoice, !usable && !premium && styles.lockedChoice, selected && styles.chosen, pressed && styles.pressedChoice]}>
           {premium && <Text style={styles.premiumEyebrow}>{usable ? 'PREMIUM COLLECTION · OWNED' : 'PREMIUM COLLECTION'}</Text>}
           <Text style={styles.choiceTitle}>{set.name}{selected ? ' ✓' : ''}</Text>
           <Text style={styles.note}>{set.description}</Text>
-          <Text style={premium ? styles.premiumLabel : usable ? styles.unlocked : styles.locked}>{label}</Text>
+          <Text style={premium ? styles.premiumLabel : usable ? styles.unlocked : styles.locked}>{usable || premium ? label : `🔒 ${label}`}</Text>
           {premium && <Text style={styles.note}>{id === 'modern' ? 'Sculpted metal profiles, bright bevels and layered silver/gunmetal finishes.' : 'Royal blue lacquer, ivory enamel and gold inlay with ornate sculpted details.'}</Text>}
           <View style={styles.setPreview} accessible={false} importantForAccessibility="no-hide-descendants">
             {(['white', 'black'] as const).map(color => <View key={color} style={styles.previewRow}>
@@ -246,7 +254,7 @@ const styles = StyleSheet.create({
   currentLook: { color: theme.colors.accent, fontSize: 14, fontWeight: '700', marginTop: 14, marginBottom: 8 },
   livePreview: { borderWidth: 2, borderRadius: 6, overflow: 'hidden' },
   previewRow: { flexDirection: 'row' },
-  previewSquare: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
+  previewSquare: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
   note: { color: theme.colors.textDim, fontSize: 12, lineHeight: 18, marginTop: 4 },
   error: { color: theme.colors.danger, fontSize: 13, marginTop: 8 },
   boardChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
@@ -257,7 +265,9 @@ const styles = StyleSheet.create({
   choiceTitle: { color: theme.colors.text, fontSize: 15, fontWeight: '800' },
   pieceChoice: { backgroundColor: theme.colors.surface, borderWidth: 2, borderColor: theme.colors.borderSoft, borderRadius: 12, padding: 12, marginBottom: 12 },
   setPreview: { marginTop: 10, backgroundColor: '#c7b9a1', borderRadius: 6, padding: 4, maxWidth: 420 },
-  setPiece: { width: `${100 / 7}%`, aspectRatio: 1, maxHeight: 52, alignItems: 'center', justifyContent: 'center' },
+  setPiece: { flex: 1, aspectRatio: 1, maxHeight: 52, alignItems: 'center', justifyContent: 'center' },
+  lockedChoice: { opacity: 0.6 },
+  pressedChoice: { opacity: 0.8, transform: [{ scale: 0.99 }] },
   title: { fontSize: 34, fontWeight: '900', color: theme.colors.text, marginVertical: 16 },
   card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.borderSoft, padding: 16, marginBottom: 14 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },

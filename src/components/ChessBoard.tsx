@@ -17,10 +17,12 @@ type Props = {
 export function ChessBoard({ board, selected, moves, onSquarePress, disabled = false, orientation = 'white' }: Props) {
   const [focused, setFocused] = useState<Square | null>(null);
   const { boardTheme: palette, pieces } = useAppearance();
+  // Explicit rows of equal flex squares. A percentage-width wrapping grid lays out
+  // correctly on the web but wraps 9 squares per row on iOS/Android.
   return <View testID="chess-board" style={[styles.board, { borderColor: palette.border }]}>
     {Array.from({ length: ROWS }, (_, displayRow) => {
       const rowIndex = orientation === 'black' ? ROWS - 1 - displayRow : displayRow;
-      return Array.from({ length: COLS }, (_, displayCol) => {
+      return <View key={rowIndex} style={styles.row}>{Array.from({ length: COLS }, (_, displayCol) => {
       const colIndex = orientation === 'black' ? COLS - 1 - displayCol : displayCol;
       const piece = board[rowIndex][colIndex];
       const square = { row: rowIndex, col: colIndex };
@@ -39,12 +41,13 @@ export function ChessBoard({ board, selected, moves, onSquarePress, disabled = f
         {move && <View pointerEvents="none" style={[piece ? styles.capture : styles.dot, { borderColor: move.shift ? palette.shift : palette.move, backgroundColor: piece ? 'transparent' : move.shift ? palette.shift : palette.move }]} />}
         {isSelected && <View pointerEvents="none" style={[styles.selection, { borderColor: palette.selected }]} />}
       </Pressable>;
-    }); })}
+    })}</View>; })}
   </View>;
 }
 const styles = StyleSheet.create({
-  board: { width: '100%', maxWidth: 680, alignSelf: 'center', aspectRatio: COLS / ROWS, flexDirection: 'row', flexWrap: 'wrap', borderRadius: 6, overflow: 'hidden', borderWidth: 3 },
-  square: { width: `${100 / COLS}%`, height: `${100 / ROWS}%`, alignItems: 'center', justifyContent: 'center' },
+  board: { width: '100%', maxWidth: 680, alignSelf: 'center', borderRadius: 6, overflow: 'hidden', borderWidth: 3 },
+  row: { flexDirection: 'row' },
+  square: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
   selection: { position: 'absolute', top: 1, bottom: 1, left: 1, right: 1, borderWidth: 3, borderRadius: 2 },
   dot: { position: 'absolute', width: '23%', height: '23%', borderRadius: 99, borderWidth: 1, opacity: 0.85 },
   capture: { position: 'absolute', width: '90%', height: '90%', borderRadius: 99, borderWidth: 3 },

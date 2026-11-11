@@ -267,8 +267,8 @@ export function GameScreen({ route, navigation }: Props) {
     </View>
 
     <View style={styles.actions}>
-      <AppButton title="Resign" onPress={doResign} secondary disabled={state.status !== 'active'} />
-      {mode === 'local' && <AppButton title="New Game" onPress={reset} secondary />}
+      <View style={styles.action}><AppButton title="Resign" onPress={doResign} secondary disabled={state.status !== 'active'} /></View>
+      {mode === 'local' && <View style={styles.action}><AppButton title="New Game" onPress={reset} secondary /></View>}
     </View>
 
     <Text style={styles.subhead}>Move History</Text>
@@ -331,6 +331,7 @@ const styles = StyleSheet.create({
   capturedIcons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   edge: { color: theme.colors.success, fontWeight: '900', fontSize: 13 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  action: { flex: 1 },
   subhead: { color: theme.colors.text, fontWeight: '900', fontSize: 16, marginTop: 10, marginBottom: 4 },
   history: { maxHeight: 84 },
   historyLine: { color: theme.colors.textDim, marginVertical: 2, fontSize: 13 },
