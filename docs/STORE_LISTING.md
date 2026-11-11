@@ -147,6 +147,8 @@ Expected result: Everyone / PEGI 3 (with "In-app purchases" and "Users interact"
 | Financial info → **Purchase history** | Yes | No | Only if they buy | App functionality |
 | App activity → **Other user-generated content / In-app actions** (game moves and results) | Yes | No | Required for online play | App functionality |
 | Device or other IDs → **Advertising ID** | Yes | **Yes** (Google AdMob) | Required for ads | Advertising or marketing |
+| Location → **Approximate location** (AdMob estimates it from the IP address) | Yes | **Yes** (Google AdMob) | Required | Advertising or marketing, Analytics, Fraud prevention/security |
+| Location → **Precise location** | **No** | No | | |
 | App info and performance → **Diagnostics / Crash logs** | Yes (by AdMob SDK) | Yes (Google) | Required | Analytics |
 
 Data processed only on the device (settings, practice level, offline games) isn't "collected" and doesn't need to be listed.
@@ -184,6 +186,7 @@ Data types (all **linked to the user**, except where noted):
 | Purchases → **Purchase History** | App Functionality | No |
 | User Content → **Gameplay Content** (moves and results) | App Functionality | No |
 | Identifiers → **Device ID** (advertising identifier) | Third-Party Advertising | **Yes**, only if the player allows tracking |
+| Location → **Coarse Location** (AdMob, from IP address) | Third-Party Advertising, Analytics | No (**not** linked to the user) |
 | Usage Data → **Advertising Data** | Third-Party Advertising | **Yes**, same |
 | Diagnostics → **Crash Data**, **Performance Data** (AdMob SDK) | Analytics | No (**not** linked to the user) |
 
