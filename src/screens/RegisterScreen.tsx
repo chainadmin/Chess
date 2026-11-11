@@ -5,7 +5,7 @@ import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
 import { authService, MIN_PASSWORD_LENGTH, USERNAME_RULES } from '../services/auth/AuthService';
-import { PRIVACY_URL } from '../services/api/ApiClient';
+import { PRIVACY_URL, TERMS_URL } from '../services/api/ApiClient';
 import { Linking } from 'react-native';
 import { theme } from '../styles/theme';
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
@@ -45,6 +45,7 @@ export function RegisterScreen({ navigation }: Props) {
     <AppButton title={busy ? 'Creating account…' : 'Create Account'} onPress={register} disabled={busy} />
     <AppButton title="I already have an account" onPress={() => navigation.replace('Login')} secondary />
     <Text style={styles.legal}>By creating an account you agree to our{' '}
+      <Text accessibilityRole="link" style={styles.link} onPress={() => { if (TERMS_URL) void Linking.openURL(TERMS_URL); }}>Terms of Service</Text> and{' '}
       <Text accessibilityRole="link" style={styles.link} onPress={() => { if (PRIVACY_URL) void Linking.openURL(PRIVACY_URL); }}>Privacy Policy</Text>.
     </Text>
   </Screen>;

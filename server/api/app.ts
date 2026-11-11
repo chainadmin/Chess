@@ -9,7 +9,7 @@ import {
 } from '../shared/passwords';
 import { Account, Store } from '../shared/store';
 import { EMAIL_PATTERN, Mailer, newRecoveryCode, recoveryDigest, resetEmail } from './mailer';
-import { accountDeletionPage, homePage, PageOptions, privacyPage, resetDonePage, resetFormPage, resetInvalidPage, supportPage } from './pages';
+import { accountDeletionPage, homePage, PageOptions, privacyPage, resetDonePage, resetFormPage, resetInvalidPage, supportPage, termsPage } from './pages';
 import { ReceiptError, ReceiptVerifier } from './receipts';
 
 export type ApiOptions = {
@@ -140,6 +140,7 @@ export function createApiServer(options: ApiOptions) {
       res.end(`${(options.appAdsTxt ?? DEFAULT_APP_ADS_TXT).trim()}\n`);
     },
     'GET /privacy': async (_req, res) => sendHtml(res, privacy),
+    'GET /terms': async (_req, res) => sendHtml(res, termsPage(options.pages)),
     'GET /account-deletion': async (_req, res) => sendHtml(res, deletion),
 
     'POST /auth/register': async (req, res, rate) => {
@@ -306,7 +307,7 @@ export function createApiServer(options: ApiOptions) {
       res.setHeader('Vary', 'Origin');
       const origin = req.headers.origin;
       const path = (req.url ?? '/').split('?')[0];
-      const page = ['/', '/privacy', '/account-deletion', '/support', '/app-ads.txt', '/health', '/reset-password'].includes(path) && (req.method === 'GET' || path === '/reset-password');
+      const page = ['/', '/privacy', '/terms', '/account-deletion', '/support', '/app-ads.txt', '/health', '/reset-password'].includes(path) && (req.method === 'GET' || path === '/reset-password');
       if (origin && !page) {
         if (!origins.has(origin)) throw new HttpError(403, 'origin_denied', 'Origin is not allowed.');
         res.setHeader('Access-Control-Allow-Origin', origin);

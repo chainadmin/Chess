@@ -8,7 +8,7 @@ import { AppButton } from '../components/AppButton';
 import { purchaseService, StoreProduct } from '../services/purchases/PurchaseService';
 import { useEntitlements } from '../services/purchases/entitlements';
 import { PIECE_SET_PRODUCTS, PRODUCT_IDS, ProductId } from '../services/purchases/products';
-import { PRIVACY_URL } from '../services/api/ApiClient';
+import { PRIVACY_URL, TERMS_URL } from '../services/api/ApiClient';
 import { adService } from '../services/ads/AdService';
 import { useProgression } from '../progression/useProgression';
 import { BOARD_ACCESS, PIECE_ACCESS, canUseCosmetic, cosmeticLabel } from '../progression/cosmetics';
@@ -171,6 +171,7 @@ export function SettingsScreen({ navigation }: Props) {
       </>}
       {user && !user.guest && <AppButton title="Delete account" secondary onPress={() => { setDeletePassword(''); setDeleteError(null); setDeleting(true); }} />}
       {PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
+      {TERMS_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(TERMS_URL!); }}>Terms of Service</Text>}
     </View>
 
     <View style={styles.card}>

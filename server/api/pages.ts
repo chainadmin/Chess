@@ -167,6 +167,7 @@ export function homePage(options: PageOptions = {}) {
 <ul>
 <li><a href="/support">Support</a></li>
 <li><a href="/privacy">Privacy policy</a></li>
+<li><a href="/terms">Terms of service</a></li>
 <li><a href="/account-deletion">Delete your account</a></li>
 </ul>`);
 }
@@ -187,5 +188,73 @@ export function supportPage(options: PageOptions = {}) {
 <p><strong>How do I remove ads?</strong> Settings → <em>Remove ads</em>, or get the Everything Pack.</p>
 <p><strong>How does the Lancer move?</strong> Diagonally any distance like a bishop, or exactly one square up, down, left or right. It can capture either way.</p>
 <p><strong>How do I delete my account?</strong> Settings → Account → <em>Delete account</em>. See <a href="/account-deletion">account deletion</a>.</p>
-<p class="muted">${app} by ${owner} · <a href="/privacy">Privacy policy</a></p>`);
+<p class="muted">${app} by ${owner} · <a href="/privacy">Privacy policy</a> · <a href="/terms">Terms of service</a></p>`);
+}
+
+/** Terms of Service: the rules for using the app, accounts, online play and purchases. */
+export function termsPage(options: PageOptions = {}) {
+  const owner = escape(options.owner ?? 'Chain Software Group');
+  const app = escape(options.appName ?? 'ShiftChess');
+  const date = escape(options.effectiveDate ?? 'November 11, 2026');
+  const contact = contactLine(options);
+  return layout(`${options.appName ?? 'ShiftChess'} Terms of Service`, `
+<h1>${app} Terms of Service</h1>
+<p class="muted">Effective ${date}</p>
+<p>These terms are an agreement between you and <strong>${owner}</strong> ("we", "us") for your use of the ${app} app, its online service and its websites (together, the "Service"). By using the Service you agree to these terms and to our <a href="/privacy">Privacy Policy</a>. If you don't agree, please don't use the Service.</p>
+
+<h2>1. Who can use ${app}</h2>
+<p>You must be at least 13 years old to create an account. If you are under the age of majority where you live, you need a parent or guardian's permission to use the Service and to make purchases.</p>
+
+<h2>2. Your account</h2>
+<ul>
+<li>You are responsible for your account, your password and your recovery code, and for everything done with your account. Keep them private.</li>
+<li>Usernames must not impersonate anyone or be offensive, hateful, sexual, or infringe someone else's rights. We may change or remove usernames that break this rule.</li>
+<li>You can delete your account at any time in the app (Settings → Account → Delete account). See <a href="/account-deletion">account deletion</a>.</li>
+</ul>
+
+<h2>3. Fair play</h2>
+<p>When playing online you agree not to:</p>
+<ul>
+<li>use chess engines, bots, other software or another person's help to choose your moves in rated games;</li>
+<li>manipulate ratings, for example by deliberately losing, playing yourself with multiple accounts, or arranging results;</li>
+<li>hack, overload, reverse-engineer, scrape or interfere with the Service or other players' use of it;</li>
+<li>exploit bugs instead of reporting them to us.</li>
+</ul>
+<p>We may reset ratings, remove results, or suspend or close accounts that break these rules.</p>
+
+<h2>4. Purchases</h2>
+<ul>
+<li>${app} is free to download and play. Optional in-app purchases (such as Remove Ads, premium piece sets and the Everything Pack) are cosmetic and ad-related only and give no gameplay advantage.</li>
+<li>Purchases are made through and billed by Apple's App Store or Google Play, and are subject to their terms. Refunds are handled by Apple or Google under their policies.</li>
+<li>What you buy is a limited, non-transferable license to use that content in ${app}. It has no cash value and can't be sold or exchanged. Use <em>Restore purchases</em> to get your purchases back on a new device.</li>
+<li>Prices are shown in the app and the store before you buy, and may change.</li>
+</ul>
+
+<h2>5. Ads</h2>
+<p>The free version shows ads provided by Google AdMob between games, as described in our <a href="/privacy">Privacy Policy</a>. Buying Remove Ads or the Everything Pack turns them off.</p>
+
+<h2>6. Our content</h2>
+<p>The Service, including the game, the Lancer piece design, artwork, piece sets, software and text, is owned by ${owner} and protected by law. We give you a personal, non-exclusive, non-transferable, revocable license to use the app for your own entertainment under these terms. You may not copy, modify, distribute, sell or create derivative works from it except as the law allows.</p>
+
+<h2>7. Changes and availability</h2>
+<p>We may update, change or discontinue features, and the online service may sometimes be unavailable (for example for maintenance). Online games in progress can end if the service restarts. We'll try to give notice of significant changes.</p>
+
+<h2>8. Ending use</h2>
+<p>You can stop using the Service and delete your account at any time. We may suspend or end your access if you break these terms or misuse the Service. Sections 4 (licenses and refunds), 6, 9 and 10 continue to apply after that.</p>
+
+<h2>9. Disclaimers</h2>
+<p>The Service is provided "as is" and "as available". To the fullest extent the law allows, we make no warranties of any kind, including that the Service will be uninterrupted, error-free or that ratings and game results will be preserved.</p>
+
+<h2>10. Limitation of liability</h2>
+<p>To the fullest extent the law allows, ${owner} will not be liable for indirect, incidental, special or consequential damages, or for lost data, and our total liability for any claim relating to the Service is limited to the amount you paid us in the 12 months before the claim. Nothing in these terms limits rights you have under consumer laws that can't be waived.</p>
+
+<h2>11. Apple and Google</h2>
+<p>These terms are between you and ${owner}, not Apple or Google. Apple and Google are not responsible for the Service or its content, and have no obligation to provide support for it. If you downloaded the app from the App Store, Apple and its subsidiaries are third-party beneficiaries of these terms and may enforce them against you. If the app fails to meet a warranty that applies to you, you may notify Apple for a refund of the purchase price (if any); Apple has no other warranty obligation. Apple is not responsible for addressing claims relating to the app, including product liability, legal or regulatory compliance, or consumer protection claims, or third-party claims that the app infringes intellectual property rights; we are. You confirm you are not located in a country subject to a U.S. government embargo and are not on any U.S. government list of prohibited or restricted parties.</p>
+
+<h2>12. Changes to these terms</h2>
+<p>We may update these terms. When we do, we will change the effective date above and, for significant changes, tell you in the app. Continuing to use the Service after a change means you accept the updated terms.</p>
+
+<h2>13. Contact</h2>
+<p>${owner}. Questions about these terms: ${contact}.</p>
+`);
 }

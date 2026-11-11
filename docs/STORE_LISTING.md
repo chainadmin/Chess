@@ -8,6 +8,7 @@ Copy-paste answers for Google Play Console and App Store Connect.
 |---|---|
 | Website / Marketing URL | https://shiftchess.chain-developments.com |
 | Privacy policy | https://shiftchess.chain-developments.com/privacy |
+| Terms of service | https://shiftchess.chain-developments.com/terms |
 | Support URL (Apple) | https://shiftchess.chain-developments.com/support |
 | Account deletion (Google) | https://shiftchess.chain-developments.com/account-deletion |
 | app-ads.txt (AdMob) | https://shiftchess.chain-developments.com/app-ads.txt |
@@ -198,6 +199,7 @@ Data types (all **linked to the user**, except where noted):
 ### Version information
 - Support URL: `https://shiftchess.chain-developments.com/support`
 - Marketing URL: `https://shiftchess.chain-developments.com`
+- License agreement: keep Apple's **Standard EULA**. Our terms (`/terms`) include the clauses Apple requires, and you can paste the terms URL into the App Description or the custom EULA field if you prefer.
 - Copyright: `2026 Chain Software Group`
 - In-App Purchases: add all four products to the version before submitting.
 

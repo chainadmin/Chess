@@ -158,6 +158,11 @@ test('home, support and app-ads.txt are public for store listings and AdMob', as
   const home = await call('GET', '/', undefined, undefined, { Origin: 'https://anywhere.example' });
   assert.equal(home.status, 200);
   assert.match(home.body, /Lancer/);
+  const terms = await call('GET', '/terms', undefined, undefined, { Origin: 'https://anywhere.example' });
+  assert.equal(terms.status, 200);
+  assert.match(terms.body, /Terms of Service/);
+  assert.match(terms.body, /Chain Software Group/);
+  assert.match(terms.body, /third-party beneficiaries/);
   const support = await call('GET', '/support');
   assert.match(support.body, /help@example\.com/);
   assert.match(support.body, /Restore purchases/);
