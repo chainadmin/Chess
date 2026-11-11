@@ -95,8 +95,13 @@ test('progress subscribers receive stable snapshots and can unsubscribe', async 
 
 test('earned cosmetic gates are explicit and premium stays closed at every level', () => {
   assert.equal(canUseCosmetic(BOARD_ACCESS.walnut, 1, NO_ENTITLEMENTS), true);
-  assert.equal(canUseCosmetic(BOARD_ACCESS.forest, 1, NO_ENTITLEMENTS), false);
-  assert.equal(canUseCosmetic(BOARD_ACCESS.forest, 2, NO_ENTITLEMENTS), true);
+  // Two boards and two piece sets from the start.
+  assert.equal(canUseCosmetic(BOARD_ACCESS.forest, 1, NO_ENTITLEMENTS), true);
+  assert.equal(canUseCosmetic(PIECE_ACCESS.imperial, 1, NO_ENTITLEMENTS), true);
+  assert.equal(canUseCosmetic(BOARD_ACCESS.sandstone, 1, NO_ENTITLEMENTS), false);
+  assert.equal(canUseCosmetic(BOARD_ACCESS.sandstone, 2, NO_ENTITLEMENTS), true);
+  assert.equal(canUseCosmetic(BOARD_ACCESS.slate, 3, NO_ENTITLEMENTS), false);
+  assert.equal(canUseCosmetic(BOARD_ACCESS.slate, 4, NO_ENTITLEMENTS), true);
   assert.equal(canUseCosmetic(PIECE_ACCESS.club, 2, NO_ENTITLEMENTS), false);
   assert.equal(canUseCosmetic(PIECE_ACCESS.club, 3, NO_ENTITLEMENTS), true);
   for (const id of ['modern', 'tournament'] as const) {
@@ -156,4 +161,20 @@ test('the Everything Pack unlocks ads removal and both premium piece sets', asyn
   assert.equal(isProductId('bundle_everything'), true);
   assert.deepEqual(grantsFor(['bundle_everything']), { adsRemoved: true, premiumPieceSets: ['modern', 'tournament'] });
   assert.deepEqual(grantsFor(['pieces_forged_metal']), { adsRemoved: false, premiumPieceSets: ['modern'] });
+});
+
+test('rewards ladder lists every earnable look in unlock order, and pickers split available from locked', async () => {
+  const { levelRewards, nextReward, splitByAccess } = await import('../../progression/cosmetics');
+  assert.deepEqual(levelRewards().map(r => [r.level, r.id]), [
+    [1, 'walnut'], [1, 'forest'], [1, 'classic'], [1, 'imperial'],
+    [2, 'sandstone'], [3, 'club'], [4, 'slate'], [5, 'jade'], [10, 'crystal'],
+  ]);
+  assert.equal(nextReward(1)?.id, 'sandstone');
+  assert.equal(nextReward(4)?.id, 'jade');
+  assert.equal(nextReward(10), undefined);
+  const pieces = splitByAccess(['classic', 'club', 'modern', 'tournament', 'imperial', 'jade', 'crystal'] as const, PIECE_ACCESS, 1, NO_ENTITLEMENTS);
+  assert.deepEqual(pieces.available, ['classic', 'imperial']);
+  assert.deepEqual(pieces.locked, ['club', 'jade', 'crystal', 'modern', 'tournament']);
+  const boards = splitByAccess(['walnut', 'forest', 'slate', 'sandstone'] as const, BOARD_ACCESS, 1, NO_ENTITLEMENTS);
+  assert.deepEqual(boards, { available: ['walnut', 'forest'], locked: ['sandstone', 'slate'] });
 });

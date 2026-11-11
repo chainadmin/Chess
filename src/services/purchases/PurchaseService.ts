@@ -47,7 +47,7 @@ export class StorePurchaseService implements PurchaseService {
 
   async products(): Promise<StoreProduct[]> {
     await this.init();
-    if (!this.catalog.length) {
+    if (this.catalog.length < ALL_PRODUCT_IDS.length) {
       const found = await this.iap.fetchProducts({ skus: [...ALL_PRODUCT_IDS], type: 'in-app' }) ?? [];
       this.catalog = found.filter(product => isProductId(product.id))
         .map(product => ({ id: product.id as ProductId, title: product.title, price: product.displayPrice }));
@@ -92,9 +92,25 @@ export class StorePurchaseService implements PurchaseService {
   }
 
   private async buy(productId: ProductId): Promise<Entitlements> {
-    await this.init();
+    await withTimeout(this.init(), 20_000, 'The store is not responding. Check your connection and try again.');
     if (this.waiting.has(productId)) throw new Error('That purchase is already in progress.');
-    const result = new Promise<Entitlements>((resolve, reject) => this.waiting.set(productId, { resolve, reject }));
+    // Never open a purchase the store doesn't know about: it would wait forever.
+    const catalog = await withTimeout(this.products(), 20_000, 'The store is not responding. Check your connection and try again.');
+    if (!catalog.some(product => product.id === productId)) {
+      this.catalog = []; // fetch again next time, in case it was just approved
+      throw new Error('This item isn\'t available from the store yet. Please try again later.');
+    }
+    const result = new Promise<Entitlements>((resolve, reject) => {
+      this.waiting.set(productId, { resolve, reject });
+      // Safety net: if the store never answers, release the button instead of spinning forever.
+      setTimeout(() => {
+        const waiter = this.waiting.get(productId);
+        if (waiter?.reject === reject) {
+          this.waiting.delete(productId);
+          reject(new Error('The store didn\'t respond. If you were charged, tap Restore purchases.'));
+        }
+      }, 5 * 60_000);
+    });
     try {
       await this.iap.requestPurchase({ type: 'in-app', request: { apple: { sku: productId }, google: { skus: [productId] } } });
     } catch (error) {
@@ -123,6 +139,13 @@ export class StorePurchaseService implements PurchaseService {
   purchaseEverything() { return this.buy(PRODUCT_IDS.everything); }
   purchasePieceSet(id: PremiumPieceSet) { return this.buy(PIECE_SET_PRODUCTS[id]); }
   async restorePurchases() { await this.init(); return this.restore(false); }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(value => { clearTimeout(timer); resolve(value); }, error => { clearTimeout(timer); reject(error); });
+  });
 }
 
 function createPurchaseService(): PurchaseService {
