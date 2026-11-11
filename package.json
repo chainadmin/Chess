@@ -15,32 +15,32 @@
     "server:dev": "node --import tsx server/main.ts"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^3.1.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.3.4",
     "@react-navigation/native-stack": "^7.17.6",
-    "expo": "^56.0.12",
-    "expo-dev-client": "~56.0.26",
+    "expo": "~57.0.32",
+    "expo-dev-client": "~57.0.21",
     "expo-iap": "^6.4.3",
-    "expo-linear-gradient": "~56.0.4",
-    "expo-secure-store": "~56.0.4",
-    "expo-splash-screen": "~56.0.15",
-    "expo-tracking-transparency": "~56.0.5",
+    "expo-linear-gradient": "~57.0.2",
+    "expo-secure-store": "~57.0.4",
+    "expo-splash-screen": "~57.0.11",
+    "expo-tracking-transparency": "~57.0.2",
     "pg": "^8.23.1",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-native": "^0.86.0",
-    "react-native-google-mobile-ads": "^17.4.0",
-    "react-native-safe-area-context": "^5.8.0",
-    "react-native-screens": "^4.25.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-google-mobile-ads": "17.4.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "~0.21.0"
   },
   "devDependencies": {
     "@types/node": "22.20.2",
     "@types/pg": "^8.23.1",
-    "@types/react": "latest",
+    "@types/react": "19.3.0",
     "tsx": "4.23.13",
-    "typescript": "latest"
+    "typescript": "7.0.2"
   },
   "overrides": {
     "shell-quote": "^1.12.0"
