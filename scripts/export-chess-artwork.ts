@@ -9,10 +9,14 @@ const vectorSets = (Object.keys(PIECE_SETS) as PieceSetId[]).filter(set => !isRi
 
 const inner = (svg: string) => svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
 const cardWidth = 560, cardHeight = 512, gap = 32;
-const svg: string[] = ['<svg xmlns="http://www.w3.org/2000/svg" width="1216" height="1234" viewBox="0 0 1216 1234">', '<rect width="1216" height="1234" fill="#15121e"/>', '<g font-family="sans-serif" fill="#f7ead2"><text x="32" y="52" font-size="32" font-weight="bold">ShiftChess · Four ways to play</text><text x="32" y="85" font-size="18" fill="#cdbfe0">Mix any board with any piece set in Settings. All sets include the Lancer.</text></g>'];
+// Sized for however many vector collections exist (two cards per row).
+const lookRows = Math.ceil(vectorSets.length / 2);
+const lookHeight = 116 + lookRows * (cardHeight + gap) + 30;
+const svg: string[] = [`<svg xmlns="http://www.w3.org/2000/svg" width="1216" height="${lookHeight}" viewBox="0 0 1216 ${lookHeight}">`, `<rect width="1216" height="${lookHeight}" fill="#15121e"/>`, '<g font-family="sans-serif" fill="#f7ead2"><text x="32" y="52" font-size="32" font-weight="bold">ShiftChess · Boards and piece sets</text><text x="32" y="85" font-size="18" fill="#cdbfe0">Mix any board with any piece set in Settings. All sets include the Lancer.</text></g>'];
 const backRank: PieceType[] = ['R', 'N', 'S', 'B', 'Q', 'K', 'B', 'S', 'N', 'R'];
 vectorSets.forEach((set, i) => {
-  const boardId = (Object.keys(BOARD_THEMES) as BoardThemeId[])[i];
+  const boardIds = Object.keys(BOARD_THEMES) as BoardThemeId[];
+  const boardId = boardIds[i % boardIds.length];
   const board = BOARD_THEMES[boardId];
   const x = 32 + i % 2 * (cardWidth + gap), y = 116 + Math.floor(i / 2) * (cardHeight + gap);
   svg.push(`<g transform="translate(${x} ${y})"><rect width="${cardWidth}" height="${cardHeight}" rx="16" fill="#241d33"/><text x="24" y="38" font-family="sans-serif" font-size="22" font-weight="bold" fill="#f7ead2">${PIECE_SETS[set].name} pieces · ${board.name}</text><text x="24" y="65" font-family="sans-serif" font-size="15" fill="#cdbfe0">${PIECE_SETS[set].description}</text><g transform="translate(30 88)"><rect x="-4" y="-4" width="508" height="408" rx="5" fill="${board.border}"/>`);
@@ -23,7 +27,7 @@ vectorSets.forEach((set, i) => {
   }
   svg.push('</g></g>');
 });
-svg.push('<text x="32" y="1215" font-family="sans-serif" font-size="15" fill="#cdbfe0">Actual game artwork · 56 pieces · Mix any board and piece set · Preview, not an app screenshot</text></svg>');
+svg.push(`<text x="32" y="${lookHeight - 19}" font-family="sans-serif" font-size="15" fill="#cdbfe0">Actual game artwork · ${vectorSets.length * 14} pieces · Mix any board and piece set · Preview, not an app screenshot</text></svg>`);
 mkdirSync('assets/chess', { recursive: true });
 writeFileSync('assets/chess/appearance-preview.svg', svg.join(''));
 // Export editable, sprite-sheet-ready sources from the runtime artwork.
@@ -39,10 +43,11 @@ for (const set of vectorSets) {
 
 // Large, labeled source-art preview for comparing the four material treatments.
 const pieceNames = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn', 'Lancer'];
+const collectionHeight = 108 + Math.ceil(vectorSets.length / 2) * 466 + 24;
 const preview = [
-  '<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="1058" viewBox="0 0 1420 1058">',
-  '<rect width="1420" height="1058" fill="#15121e"/>',
-  '<g font-family="sans-serif" fill="#f7ead2"><text x="32" y="49" font-size="31" font-weight="bold">ShiftChess · Four distinct piece collections</text><text x="32" y="81" font-size="18" fill="#cdbfe0">Actual game artwork. Every set includes light and dark versions of all seven pieces.</text></g>',
+  `<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="${collectionHeight}" viewBox="0 0 1420 ${collectionHeight}">`,
+  `<rect width="1420" height="${collectionHeight}" fill="#15121e"/>`,
+  '<g font-family="sans-serif" fill="#f7ead2"><text x="32" y="49" font-size="31" font-weight="bold">ShiftChess · Vector piece collections</text><text x="32" y="81" font-size="18" fill="#cdbfe0">Actual game artwork. Every set includes light and dark versions of all seven pieces.</text></g>',
 ];
 vectorSets.forEach((set, i) => {
   const x = 32 + i % 2 * 694, y = 108 + Math.floor(i / 2) * 466;
@@ -59,5 +64,5 @@ vectorSets.forEach((set, i) => {
   }
   preview.push('</g>');
 });
-preview.push('<text x="32" y="1040" font-family="sans-serif" font-size="15" fill="#cdbfe0">Flat 2D pieces · Spearhead Lancer · Material and color differences · Not an app screenshot</text></svg>');
+preview.push(`<text x="32" y="${collectionHeight - 18}" font-family="sans-serif" font-size="15" fill="#cdbfe0">Flat 2D pieces · Spearhead Lancer · Material and color differences · Not an app screenshot</text></svg>`);
 writeFileSync('assets/chess/collections-preview.svg', preview.join(''));

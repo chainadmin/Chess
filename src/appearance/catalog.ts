@@ -5,7 +5,12 @@ export const BOARD_THEMES = {
   forest: { name: 'Forest', description: 'Classic cream and green', light: '#eef0d5', dark: '#76935b', border: '#3c5131', selected: '#ffe36a', move: '#173c35', shift: '#173e73' },
   slate: { name: 'Slate', description: 'Cool porcelain and blue', light: '#e0e8ed', dark: '#6d889d', border: '#34495b', selected: '#ffe078', move: '#163d2c', shift: '#152d65' },
   sandstone: { name: 'Sandstone', description: 'Soft parchment and clay', light: '#f4e8d6', dark: '#b6957d', border: '#6e5445', selected: '#ffdf67', move: '#16462d', shift: '#1b416d' },
+  carrara: { name: 'Carrara Marble', description: 'Veined white and blue-grey marble slab', light: '#eeeae3', dark: '#7c8a90', border: '#4b5559', selected: '#ffd95a', move: '#163d2c', shift: '#173a6b' },
+  mahogany: { name: 'Mahogany & Gold', description: 'Maple and mahogany in a gilded frame', light: '#e3c18e', dark: '#a65b3a', border: '#c3963c', selected: '#ffe27a', move: '#143a28', shift: '#16345f' },
 } as const;
+/** Boards drawn with a continuous surface texture under the squares. */
+export type BoardTexture = 'marble' | 'grain';
+export const BOARD_TEXTURES: Partial<Record<keyof typeof BOARD_THEMES, BoardTexture>> = { carrara: 'marble', mahogany: 'grain' };
 export const PIECE_SETS = {
   classic: { name: 'Classic', description: 'Sculpted Staunton silhouettes' },
   club: { name: 'Carved Wood', description: 'Maple and walnut with carved grain' },
@@ -14,6 +19,8 @@ export const PIECE_SETS = {
   imperial: { name: 'Imperial Ivory', description: 'Sculpted ivory and obsidian, finished with antique gold' },
   jade: { name: 'Jade Dynasty', description: 'Luminous celadon and deep emerald with brass accents' },
   crystal: { name: 'Frost Crystal', description: 'Faceted pearl and smoky sapphire with polished silver' },
+  marble: { name: 'Carrara Marble', description: 'White Carrara and black Nero Marquina marble with brass collars' },
+  rosegold: { name: 'Rose Gold', description: 'Polished rose gold against black chrome, faceted like jewellery' },
 } as const;
 export type BoardThemeId = keyof typeof BOARD_THEMES;
 export type PieceSetId = keyof typeof PIECE_SETS;

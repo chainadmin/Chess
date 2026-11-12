@@ -25,12 +25,12 @@ function memoryStorage(initial: string | null = null) {
 }
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 
-test('appearance catalog contains four distinct boards, seven sets and all seven piece types', () => {
-  assert.equal(Object.keys(BOARD_THEMES).length, 4);
-  assert.equal(sets.length, 4);
-  assert.equal(allSets.length, 7);
+test('appearance catalog contains six distinct boards, nine sets and all seven piece types', () => {
+  assert.equal(Object.keys(BOARD_THEMES).length, 6);
+  assert.equal(sets.length, 6);
+  assert.equal(allSets.length, 9);
   assert.deepEqual(PIECE_ORDER, ['K', 'Q', 'R', 'B', 'N', 'P', 'S']);
-  assert.equal(new Set(Object.values(BOARD_THEMES).map(b => `${b.light}/${b.dark}`)).size, 4);
+  assert.equal(new Set(Object.values(BOARD_THEMES).map(b => `${b.light}/${b.dark}`)).size, 6);
   for (const board of Object.values(BOARD_THEMES)) {
     assert.notEqual(board.light, board.dark);
     for (const key of ['light', 'dark', 'border', 'selected', 'move', 'shift'] as const) assert.match(board[key], /^#[0-9a-f]{6}$/i);
@@ -202,7 +202,7 @@ function assertSafeSvg(svg: string) {
 }
 function geometry(svg: string) { return svg.match(/<(?:path|circle)\b[^>]*>/g)!.join(''); }
 
-test('all 56 artworks are self-contained SVGs; each piece and collection has unique geometry', () => {
+test('all 84 vector artworks are self-contained SVGs; each piece and collection has unique geometry', () => {
   const all = new Set<string>();
   for (const set of sets) {
     const silhouettes = new Set<string>();
@@ -217,8 +217,8 @@ test('all 56 artworks are self-contained SVGs; each piece and collection has uni
     }
     assert.equal(silhouettes.size, 7);
   }
-  assert.equal(all.size, 56);
-  for (const piece of PIECE_ORDER) assert.equal(new Set(sets.map(set => geometry(getPieceSvg(set, piece, 'white')))).size, 4);
+  assert.equal(all.size, sets.length * 14);
+  for (const piece of PIECE_ORDER) assert.equal(new Set(sets.map(set => geometry(getPieceSvg(set, piece, 'white')))).size, sets.length);
 });
 
 test('exported sprite sheets exactly match the authoritative runtime artwork in both colors', () => {
@@ -243,13 +243,13 @@ function contrast(a: string, b: string): number {
 }
 
 test('material collections retain stable saved IDs and distinct palettes and modeled details', () => {
-  assert.deepEqual(sets, ['classic', 'club', 'modern', 'tournament']);
-  assert.deepEqual(sets.map(id => PIECE_SETS[id].name), ['Classic', 'Carved Wood', 'Forged Metal', 'Royal Lacquer']);
+  assert.deepEqual(sets, ['classic', 'club', 'modern', 'tournament', 'marble', 'rosegold']);
+  assert.deepEqual(sets.map(id => PIECE_SETS[id].name), ['Classic', 'Carved Wood', 'Forged Metal', 'Royal Lacquer', 'Carrara Marble', 'Rose Gold']);
   for (const color of ['white', 'black'] as const) for (const piece of PIECE_ORDER) {
     const classic = getPieceSvg('classic', piece, color);
     assert.ok(palette(classic).length <= 5, 'Classic should retain its restrained, clean palette');
     const palettes = sets.map(set => palette(getPieceSvg(set, piece, color)).join(','));
-    assert.equal(new Set(palettes).size, 4, `${piece}/${color}: material palettes must differ`);
+    assert.equal(new Set(palettes).size, sets.length, `${piece}/${color}: material palettes must differ`);
     const basePaths = (classic.match(/<path\b/g) ?? []).length;
     for (const set of sets.filter(id => id !== 'classic')) {
       const svg = getPieceSvg(set, piece, color);
@@ -276,7 +276,7 @@ test('both sides have contrasting primary fills and a readable outline against e
   }
 });
 
-test('all 56 standalone SVG exports exactly match authoritative runtime artwork', () => {
+test('all standalone SVG exports exactly match authoritative runtime artwork', () => {
   for (const set of sets) for (const color of ['white', 'black'] as const) for (const piece of PIECE_ORDER) {
     const exported = readFileSync(new URL(`../../../assets/chess/${set}-${color}-${piece}.svg`, import.meta.url), 'utf8');
     assert.equal(exported.trim(), getPieceSvg(set, piece, color), `${set}/${color}/${piece}`);

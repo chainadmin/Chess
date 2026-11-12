@@ -1,7 +1,7 @@
 import type { Color, PieceType } from '../game/pieces';
 
 /** Original vector collections. S is the Lancer; artwork never changes its rules. */
-export type ArtworkSet = 'classic' | 'club' | 'modern' | 'tournament';
+export type ArtworkSet = 'classic' | 'club' | 'modern' | 'tournament' | 'marble' | 'rosegold';
 type Drawing = { body: string; detail?: string; facets?: string };
 const path = (d: string) => `<path d="${d}"/>`;
 const circle = (cx: number, cy: number, r: number) => `<circle cx="${cx}" cy="${cy}" r="${r}"/>`;
@@ -12,14 +12,20 @@ const bases: Record<ArtworkSet, string> = {
   club: path('M37 48 H63 C61 59 64 70 70 76 H30 C36 70 39 59 37 48Z') + path('M29 76 H71 Q80 76 80 84 V92 H20 V84 Q20 76 29 76Z'),
   modern: path('M40 46 H60 L66 72 L75 80 V90 H25 V80 L34 72Z') + path('M25 82 H75 V92 H25Z'),
   tournament: path('M41 46 H59 C57 60 60 68 68 75 L64 79 H36 L32 75 C40 68 43 60 41 46Z') + path('M31 79 H69 L74 85 H26Z') + path('M28 85 H72 Q78 86 78 92 H22 Q22 86 28 85Z'),
+  // Classical column base: fluted stem, rounded torus moulding and a square plinth.
+  marble: path('M38 47 H62 C61 59 64 66 70 72 H30 C36 66 39 59 38 47Z') + path('M28 72 H72 Q78 72 78 77 Q78 82 72 82 H28 Q22 82 22 77 Q22 72 28 72Z') + path('M23 83 H77 V92 H23Z'),
+  // Slender jewellery-style stem on a stepped, bevelled foot.
+  rosegold: path('M42 46 H58 L62 72 L70 78 V83 H30 V78 L38 72Z') + path('M25 84 H75 L72 92 H28Z'),
 };
 const collars: Record<ArtworkSet, string> = {
   classic: path('M36 43 H64 Q69 43 69 48 Q69 52 64 52 H36 Q31 52 31 48 Q31 43 36 43Z'),
   club: path('M35 44 H65 Q71 44 71 49 Q71 54 65 54 H35 Q29 54 29 49 Q29 44 35 44Z'),
   modern: path('M33 44 H67 L63 52 H37Z'),
   tournament: path('M35 44 H65 L67 49 L62 53 H38 L33 49Z'),
+  marble: path('M34 42 H66 Q70 42 70 46 V49 Q70 52 66 52 H34 Q30 52 30 49 V46 Q30 42 34 42Z'),
+  rosegold: path('M36 43 H64 L66 47 L61 51 H39 L34 47Z'),
 };
-const crowns: Record<ArtworkSet, Record<PieceType, Drawing>> = {
+const crowns = {
   classic: {
     K: { body: path('M45 9 H55 V18 H64 V27 H55 V33 H62 L66 43 H34 L38 33 H45 V27 H36 V18 H45Z'), detail: line('M39 34 H61') },
     Q: { body: path('M27 25 L38 32 L50 20 L62 32 L73 25 L65 44 H35Z') + circle(26, 22, 4) + circle(50, 16, 4) + circle(74, 22, 4), detail: line('M36 38 H64') },
@@ -56,7 +62,11 @@ const crowns: Record<ArtworkSet, Record<PieceType, Drawing>> = {
     P: { body: circle(50, 31, 10) + path('M44 41 H56 L61 45 H39Z') },
     S: { body: path('M50 7 L63 30 Q65 33 61 36 L54 42 V45 H46 V42 L39 36 Q35 33 37 30Z'), facets: path('M50 9 L61 31 L52 41 V44 H50Z') },
   },
-};
+} as Record<ArtworkSet, Record<PieceType, Drawing>>;
+
+// The marble set shares the timeless Staunton heads; rose gold shares the faceted heads.
+crowns.marble = crowns.classic;
+crowns.rosegold = crowns.modern;
 
 /** No filters, external assets, IDs or fonts: safe to render many pieces together. */
 export function getPieceSvg(set: ArtworkSet, type: PieceType, color: Color): string {
@@ -103,6 +113,17 @@ const woodHeadGrain: Record<PieceType, string> = {
   S: 'M49 18 Q45 28 48 36 M54 27 Q59 32 54 37',
 };
 
+// Natural stone veining drawn inside each head and through the stem.
+const marbleHeadVeins: Record<PieceType, string> = {
+  K: 'M46 13 Q49 20 45 26 M54 22 Q58 28 55 36 M40 38 Q48 35 56 40',
+  Q: 'M33 29 Q41 33 45 41 M55 24 Q52 32 58 39',
+  R: 'M33 21 Q38 28 35 34 M55 20 Q61 27 58 36 M41 38 Q50 35 59 39',
+  B: 'M47 22 Q41 30 45 39 M55 30 Q58 35 54 41',
+  N: 'M44 18 Q48 25 43 31 M55 22 Q63 30 60 40 M31 36 Q37 34 39 39',
+  P: 'M45 26 Q41 31 45 37 M53 27 Q57 32 54 38',
+  S: 'M50 14 Q46 24 50 31 Q53 36 49 41 M57 27 Q60 31 57 35',
+};
+
 function getMaterialPieceSvg(set: Exclude<ArtworkSet, 'classic'>, type: PieceType, color: Color): string {
   const white = color === 'white';
   const drawing = crowns[set][type];
@@ -147,6 +168,38 @@ function getMaterialPieceSvg(set: Exclude<ArtworkSet, 'classic'>, type: PieceTyp
     // Small steel fasteners on the machined collar and rectangular foot.
     material += group(bright, circle(42, 48, 1.25) + circle(58, 48, 1.25) + circle(32, 87, 1.3) + circle(68, 87, 1.3));
     details = group('none', drawing.detail ?? '', white ? '#273b4c' : '#c4d6e0', 2.6);
+  } else if (set === 'marble') {
+    // White Carrara / black Nero Marquina marble with grey and white veins and brushed brass.
+    fill = white ? '#f4f1eb' : '#26292e';
+    ink = white ? '#3a3c40' : '#0d0e10';
+    edge = white ? '#fffdf8' : '#d9d4c9';
+    const shade = white ? '#d8d3ca' : '#15171a';
+    const sheen = white ? '#ffffff' : '#474b52';
+    const vein = white ? '#9da3a7' : '#e6e1d6';
+    const brass = white ? '#b8913f' : '#d3ac57';
+    material += group(shade, path('M53 55 H59 Q59 64 65 71 H55 Q51 64 53 55Z') + path('M60 84 H76 V91 H60Z'));
+    material += group(sheen, path('M41 55 H46 Q44 64 39 71 H34 Q39 64 41 55Z') + path('M24 84 H38 V87 H24Z'));
+    material += group('none', line('M45 56 Q50 62 46 67 Q44 70 47 72 M56 58 Q53 64 57 69 M27 76 Q37 74 46 78 T70 76 M31 88 Q42 85 50 89 T73 87'), vein, 1.1);
+    material += group('none', line(marbleHeadVeins[type]), vein, 1.15);
+    material += group(brass, path('M33 47 H67 V49 H33Z') + path('M24 82 H76 V84 H24Z'));
+    material += group('none', line('M36 44 H64'), white ? '#e2c27a' : '#f0d58f', 1.1);
+    if (type === 'S') material += group(sheen, path('M51 13 L62 32 L53 40 H51Z'));
+    details = group('none', drawing.detail ?? '', white ? '#5f6164' : '#e8e3d8', 2.4);
+  } else if (set === 'rosegold') {
+    // Polished rose gold against black chrome with rose-gold trim: faceted like jewellery.
+    fill = white ? '#e2a98f' : '#2a2d34';
+    ink = white ? '#6b3b2b' : '#0c0d10';
+    edge = white ? '#fff1ea' : '#e7b39c';
+    const bright = white ? '#fde3d6' : '#8e96a5';
+    const shade = white ? '#b2735c' : '#14161b';
+    const trim = white ? '#fff6f1' : '#e0a088';
+    material += group(shade, path('M50 54 H58 L61 71 L68 77 H50Z') + path('M52 86 H72 L70 90 H52Z'));
+    material += group(bright, path('M42 54 H48 L44 71 L33 77 H38 L46 69Z') + path('M29 86 H48 V88 H29Z'));
+    material += group(bright, path(metalHeadFacets[type]));
+    material += group('none', line(materialHeadMarks[type]), white ? '#ffffff' : '#c4cad6', 1.4);
+    material += group(trim, path('M38 46 H62 L60 50 H40Z') + path('M30 79 H70 V81 H30Z'));
+    material += group(white ? '#c98a72' : '#e0a088', circle(50, 48, 1.6) + circle(29, 88, 1.3) + circle(71, 88, 1.3));
+    details = group('none', drawing.detail ?? '', white ? '#6b3b2b' : '#e7b39c', 2.5);
   } else {
     // Enamel-like ivory / midnight blue with gold inlay and chiseled ornament.
     fill = white ? '#fff5de' : '#182d58';
@@ -167,6 +220,6 @@ function getMaterialPieceSvg(set: Exclude<ArtworkSet, 'classic'>, type: PieceTyp
     if (type === 'P') material += group('none', line('M43 35 Q50 39 57 35'), gold, 2.2);
     details = group('none', drawing.detail ?? '', white ? '#7c602c' : '#e6bd60', 2.5);
   }
-  const strokeWidth = set === 'club' ? 3.6 : set === 'modern' ? 3 : 2.7;
+  const strokeWidth = set === 'club' ? 3.6 : set === 'modern' || set === 'rosegold' ? 3 : set === 'marble' ? 2.9 : 2.7;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><g stroke-linecap="round" stroke-linejoin="round">${group(fill, body, edge, strokeWidth + 2.2)}${group(fill, body, ink, strokeWidth)}${material}${details}</g></svg>`;
 }

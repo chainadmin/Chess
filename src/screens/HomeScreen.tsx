@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RootStackParamList } from '../navigation/types';
-import { Screen } from '../components/Screen';
+import { FULL_SCREEN, Screen } from '../components/Screen';
 import { PieceView } from '../components/PieceView';
 import { MiniBoard } from '../components/MiniBoard';
 import { authService, User } from '../services/auth/AuthService';
@@ -59,15 +59,20 @@ export function HomeScreen({ navigation }: Props) {
   const unlock = nextUnlock(progress.level);
   const online = !!onlineClient;
 
-  return <Screen><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  return <Screen edges={FULL_SCREEN}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <View style={styles.header}>
       <View style={styles.brand}>
         <View style={styles.mark}><PieceView type="S" color="white" set={pieces} size={22} /></View>
         <Text style={styles.wordmark}>ShiftChess</Text>
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Settings and cosmetics" onPress={() => navigation.navigate('Settings')} style={styles.iconButton}>
-        <Text style={styles.iconText}>⚙︎</Text>
-      </Pressable>
+      <View style={styles.headerButtons}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Shop" onPress={() => navigation.navigate('Shop')} style={({ pressed }) => [styles.shopButton, pressed && styles.pressed]}>
+          <Text style={styles.shopText}>🛍️ Shop</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Settings and cosmetics" onPress={() => navigation.navigate('Settings')} style={styles.iconButton}>
+          <Text style={styles.iconText}>⚙︎</Text>
+        </Pressable>
+      </View>
     </View>
     <Text style={styles.greeting}>{profile ? `Welcome back, ${profile.username}` : 'Ready for a game?'}</Text>
 
@@ -79,7 +84,7 @@ export function HomeScreen({ navigation }: Props) {
           <Text style={styles.heroEyebrow}>{online ? '● LIVE · RATED 3+2' : 'ONLINE · 3+2'}</Text>
           <Text style={styles.heroTitle}>Play a real{'\n'}opponent</Text>
           <Text style={styles.heroDetail}>{profile ? `Rating ${profile.rating} · ${ratingTitle(profile.rating)}` : 'Free account · Always free'}</Text>
-          <View style={styles.heroButton}><Text style={styles.heroButtonText}>{profile || !authService.accountsAvailable ? 'Find a game  →' : 'Create free account  →'}</Text></View>
+          <View style={styles.heroButton}><Text style={styles.heroButtonText}>{profile || !authService.accountsAvailable ? 'Find a game  →' : 'Sign up free  →'}</Text></View>
         </View>
         <View style={styles.heroArt} accessible={false}>
           <View style={styles.heroPieceBack}><PieceView type="K" color="black" set={pieces} size={70} /></View>
@@ -116,15 +121,23 @@ export function HomeScreen({ navigation }: Props) {
         <Text style={styles.emoji}>🏆</Text>
       </Tile>}
     </View>
+    <View style={styles.row}>
+      <Tile label="Levels & rewards" detail={unlock ? `Next: ${unlock.name}` : 'All rewards unlocked'} onPress={() => navigation.navigate('Rewards')}>
+        <Text style={styles.emoji}>🎁</Text>
+      </Tile>
+      <Tile label="Shop" detail="Remove ads · Premium pieces" onPress={() => navigation.navigate('Shop')}>
+        <Text style={styles.emoji}>🛍️</Text>
+      </Tile>
+    </View>
 
-    <Pressable accessibilityRole="button" accessibilityLabel={`Practice level ${progress.level}. Open cosmetics.`} onPress={() => navigation.navigate('Settings')} style={styles.levelCard}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Practice level ${progress.level}. See levels and rewards.`} onPress={() => navigation.navigate('Rewards')} style={({ pressed }) => [styles.levelCard, pressed && styles.pressed]}>
       <View style={styles.levelTop}>
         <Text style={styles.levelTitle}>Level {progress.level}</Text>
         <Text style={styles.levelXp}>{progress.level === MAX_LEVEL ? 'Max level' : `${progress.xp % XP_PER_LEVEL} / ${XP_PER_LEVEL} XP`}</Text>
       </View>
       <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: levelPct }} style={styles.track}><View style={[styles.fill, { width: `${levelPct}%` }]} /></View>
-      <Text style={styles.levelHint}>{unlock ? `Next unlock: ${unlock.name} at level ${unlock.level}` : 'Every practice look unlocked'}</Text>
-      {progress.error && <Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text>}
+      <Text style={styles.levelHint}>{unlock ? `Next unlock: ${unlock.name} at level ${unlock.level}` : 'Every practice look unlocked'} · <Text style={styles.levelLink}>See all rewards ›</Text></Text>
+      {!!progress.error && <Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text>}
     </Pressable>
 
     <View style={styles.footer}>
@@ -142,6 +155,10 @@ const styles = StyleSheet.create({
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   mark: { width: 34, height: 34, borderRadius: 11, backgroundColor: theme.colors.cyan, alignItems: 'center', justifyContent: 'center' },
   wordmark: { color: theme.colors.text, fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
+  headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  shopButton: { height: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: theme.colors.accentSoft, borderWidth: 1, borderColor: theme.colors.accent, alignItems: 'center', justifyContent: 'center' },
+  shopText: { color: theme.colors.gold, fontWeight: '900', fontSize: 14 },
+  levelLink: { color: theme.colors.cyan, fontWeight: '800' },
   iconButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderSoft, alignItems: 'center', justifyContent: 'center' },
   iconText: { color: theme.colors.text, fontSize: 20 },
   greeting: { color: theme.colors.text, fontSize: 28, fontWeight: '900', marginTop: 18, marginBottom: 14, letterSpacing: -0.5 },

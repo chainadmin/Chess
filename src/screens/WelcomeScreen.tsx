@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Screen } from '../components/Screen';
+import { FULL_SCREEN, Screen } from '../components/Screen';
 import { PieceView } from '../components/PieceView';
 import { LancerShowcase } from '../components/LancerShowcase';
 import { useAppearance } from '../appearance/useAppearance';
@@ -16,7 +16,7 @@ export function WelcomeScreen({ navigation }: Props) {
   const { pieces } = useAppearance();
   // Lowest-friction start: play straight away, sign up later for online games.
   const playNow = async () => { await authService.continueAsGuest(); navigation.replace('Home'); };
-  return <Screen><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  return <Screen edges={FULL_SCREEN}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <View style={styles.brand}>
       <View style={styles.mark}><PieceView type="S" color="white" set={pieces} size={26} /></View>
       <Text style={styles.wordmark}>ShiftChess</Text>

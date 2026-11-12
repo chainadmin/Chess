@@ -18,7 +18,7 @@ Scan the QR code with Expo Go, or run `npm run web` to try it in a browser. AdMo
 ```bash
 npm run typecheck   # tsc --noEmit over the app and the test suite
 npm test            # Node's test runner with the tsx loader
-npm run check       # type checks and behavior tests
+npm run check       # type checks, native text-safety scan and behavior tests
 ```
 
 The test suites (`src/game/__tests__` and `src/online/__tests__`) cover check/checkmate/stalemate detection, castling, en passant, promotion, the 50-move rule, threefold repetition, insufficient material, pawn attack geometry, repetition identity, Shifter mating material, promotion choices, opponent ownership and cancellation, deterministic computer play, pins, daily-puzzle generation, the password hashing helper, and the Elo rating math — all pure functions with no React Native dependency, so they run under plain Node.
@@ -38,7 +38,17 @@ The test suites (`src/game/__tests__` and `src/online/__tests__`) cover check/ch
 
 ## Board and piece collections
 
-Open **Settings** to mix four boards (Walnut, Forest, Slate, Sandstone) with four original piece sets (Classic, Carved Wood, Forged Metal, Royal Lacquer). The Classic set keeps ivory/charcoal Staunton styling; Carved Wood uses maple/walnut grain and carved details; Forged Metal uses silver/gunmetal facets; Royal Lacquer uses ivory/royal blue with gold inlay. Each set includes both colors of King, Queen, Rook, Bishop, Knight, Pawn, and the spearhead **Lancer**. The starter look is Walnut + Classic. Forest unlocks at practice level 2, Carved Wood at level 3, Sandstone at level 4, and Slate at level 6. Forged Metal and Royal Lacquer are premium previews and cannot be equipped until real store billing and verified entitlements exist. Existing artwork is retained; these two premium collections use the richer sculpted metal and lacquer/gold treatments. Unlocked preferences apply immediately and are saved locally on this device/browser; storage problems are shown in Settings with a retry instruction. Unknown or corrupt saved values fall back safely.
+Open **Settings** to mix six boards with nine piece sets. Settings lists **Boards** and **Pieces** separately, each split into **Available** and **Locked** (locked ones in unlock order, premium last); **Levels & rewards** shows the whole ladder and the next reward.
+
+| Unlock | Boards | Pieces |
+|---|---|---|
+| Start | Walnut, Forest | Classic, Imperial Ivory |
+| Level 2 / 3 / 4 / 5 | Sandstone (2), Slate (4) | Carved Wood (3), Jade Dynasty (5) |
+| Level 6 / 7 / 8 | **Carrara Marble** (6), **Mahogany & Gold** (8) | **Carrara Marble** (7) |
+| Level 10 / 12 | | Frost Crystal (10), **Rose Gold** (12) |
+| Premium (Shop) | | Forged Metal, Royal Lacquer |
+
+The high-end boards draw one continuous textured surface (marble veining or wood grain with a gilded frame) under the squares (`src/components/BoardSurface.tsx`). Vector piece sets are generated in `src/appearance/pieceArtwork.ts`; Imperial Ivory, Jade Dynasty and Frost Crystal are pre-rendered atlases. Every set includes both colors of King, Queen, Rook, Bishop, Knight, Pawn and the spearhead **Lancer**, and tests check every piece outline stays readable on every board. Unlocked preferences apply immediately and are saved locally on this device/browser; storage problems are shown in Settings with a retry instruction. Unknown or corrupt saved values fall back safely.
 
 A shared vector renderer covers the main board, daily puzzles, captured pieces, promotion picker, settings previews and welcome screen. SVG artwork is bundled in the app, has no network or font dependency, and scales without bitmap blur. Settings can scroll on small screens, selections have accessible labels and checked state, squares have names/selection state and keyboard focus, and promotion choices wrap instead of overflowing narrow screens.
 
