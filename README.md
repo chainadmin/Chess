@@ -38,7 +38,7 @@ The test suites (`src/game/__tests__` and `src/online/__tests__`) cover check/ch
 
 ## Board and piece collections
 
-Open **Settings** to mix six boards with nine piece sets. Settings lists **Boards** and **Pieces** separately, each split into **Available** and **Locked** (locked ones in unlock order, premium last); **Levels & rewards** shows the whole ladder and the next reward.
+Open **Boards & pieces** (Home) to mix six boards with nine piece sets. It has **Boards** and **Pieces** tabs, each split into **Available** and **Locked** (locked ones in unlock order, premium last); **Levels & rewards** shows the whole ladder and the next reward.
 
 | Unlock | Boards | Pieces |
 |---|---|---|

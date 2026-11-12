@@ -1,288 +1,163 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Text, StyleSheet, Switch, View, ScrollView, Pressable, Modal, TextInput, Linking, KeyboardAvoidingView } from 'react-native';
-import { useFocusEffect, CommonActions } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { KeyboardAvoidingView, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
-import { purchaseService, StoreProduct } from '../services/purchases/PurchaseService';
-import { useEntitlements } from '../services/purchases/entitlements';
-import { PIECE_SET_PRODUCTS, PRODUCT_IDS, ProductId } from '../services/purchases/products';
-import { PRIVACY_URL, TERMS_URL } from '../services/api/ApiClient';
+import { PRIVACY_URL, SUPPORT_URL, TERMS_URL } from '../services/api/ApiClient';
 import { adService } from '../services/ads/AdService';
-import { useProgression } from '../progression/useProgression';
-import { BOARD_ACCESS, PIECE_ACCESS, canUseCosmetic, cosmeticLabel, nextReward, splitByAccess } from '../progression/cosmetics';
-import { MAX_LEVEL, XP_PER_LEVEL } from '../progression/progression';
 import { authService, User } from '../services/auth/AuthService';
+import { purchaseService } from '../services/purchases/PurchaseService';
 import { soundService } from '../services/sound/SoundService';
-import { BOARD_THEMES, PIECE_SETS, PIECE_ORDER, BoardThemeId, PieceSetId } from '../appearance/catalog';
-import { useAppearance } from '../appearance/useAppearance';
-import { PieceView } from '../components/PieceView';
 import { theme } from '../styles/theme';
+import appJson from '../../app.json';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return <View style={styles.section}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={styles.group}>{children}</View>
+  </View>;
+}
+
+function Row({ label, detail, onPress, danger, last, right }: { label: string; detail?: string; onPress?: () => void; danger?: boolean; last?: boolean; right?: React.ReactElement }) {
+  const content = <>
+    <View style={{ flex: 1 }}>
+      <Text style={[styles.rowLabel, danger && styles.danger]}>{label}</Text>
+      {!!detail && <Text style={styles.rowDetail}>{detail}</Text>}
+    </View>
+    {right ?? (onPress ? <Text style={styles.chevron}>›</Text> : null)}
+  </>;
+  if (!onPress) return <View style={[styles.row, !last && styles.divider]}>{content}</View>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={detail ? `${label}. ${detail}` : label} onPress={onPress}
+    style={({ pressed }) => [styles.row, !last && styles.divider, pressed && styles.pressed]}>{content}</Pressable>;
+}
+
+/** Settings: account, sound, purchases link, help and legal. Looks live in Boards & pieces. */
 export function SettingsScreen({ navigation }: Props) {
-  const appearance = useAppearance();
-  const progress = useProgression();
   const [sound, setSound] = useState(true);
   const [user, setUser] = useState<User | null>(null);
-  const owned = useEntitlements();
-  const [products, setProducts] = useState<StoreProduct[]>([]);
-  const [storeMessage, setStoreMessage] = useState<string | null>(null);
-  const [buying, setBuying] = useState<ProductId | 'restore' | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [secure, setSecure] = useState<null | 'email' | 'code'>(null);
-  const [securePassword, setSecurePassword] = useState('');
+  const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [modal, setModal] = useState<null | 'email' | 'code' | 'delete'>(null);
+  const [password, setPassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [secureError, setSecureError] = useState<string | null>(null);
-  const [secureBusy, setSecureBusy] = useState(false);
-  const openSecure = (kind: 'email' | 'code') => { setSecure(kind); setSecurePassword(''); setSecureError(null); setNewEmail(user?.email ?? ''); };
-  const submitSecure = async () => {
-    setSecureBusy(true); setSecureError(null);
-    try {
-      if (secure === 'email') {
-        await authService.setEmail(newEmail, securePassword);
-        setUser(await authService.currentUser());
-        setSecure(null);
-      } else {
-        const code = await authService.newRecoveryCode(securePassword);
-        setSecure(null);
-        navigation.navigate('RecoveryCode', { code, then: 'back' });
-      }
-    } catch (error) { setSecureError(error instanceof Error ? error.message : 'Something went wrong.'); }
-    finally { setSecureBusy(false); }
-  };
-  useEffect(() => {
-    if (!purchaseService.available) return;
-    purchaseService.products().then(setProducts).catch(() => setStoreMessage('The store is not reachable right now. Try again later.'));
-  }, []);
-  const price = (id: ProductId) => products.find(product => product.id === id)?.price;
-  const run = async (key: ProductId | 'restore', action: () => Promise<unknown>, success: string) => {
-    setBuying(key); setStoreMessage(null);
-    try { await action(); setStoreMessage(success); }
-    catch (error) { setStoreMessage(error instanceof Error ? error.message : 'Something went wrong.'); }
-    finally { setBuying(null); }
-  };
-  const removeAccount = async () => {
-    setDeleteError(null);
-    try {
-      await authService.deleteAccount(deletePassword);
-      setDeleting(false);
-      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Welcome' }] }));
-    } catch (error) { setDeleteError(error instanceof Error ? error.message : 'Could not delete the account.'); }
-  };
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const load = useCallback(() => {
     authService.currentUser().then(setUser);
     soundService.isEnabled().then(setSound);
   }, []);
   useFocusEffect(load);
-  const toggle = async (v: boolean) => { setSound(v); await soundService.setEnabled(v); };
-  const logout = async () => { await authService.logout(); navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Welcome' }] })); };
-  const boardGroups = splitByAccess(Object.keys(BOARD_THEMES) as BoardThemeId[], BOARD_ACCESS, progress.level, owned);
-  const pieceGroups = splitByAccess(Object.keys(PIECE_SETS) as PieceSetId[], PIECE_ACCESS, progress.level, owned);
-  const upcoming = nextReward(progress.level);
-  /** Locked choices explain how to get them instead of silently ignoring the tap. */
-  const explainLocked = (name: string, access: typeof BOARD_ACCESS[BoardThemeId]) => {
-    if (access.kind === 'level') {
-      Alert.alert(`${name} is locked`, `It unlocks at practice level ${access.level}. You're level ${progress.level}.\n\nEarn XP by finishing games against the computer or pass-and-play (25 XP, +25 for a win) and by solving the daily puzzle (30 XP).`);
-    } else if (access.kind === 'premium') {
-      Alert.alert(`${name} is a premium set`, purchaseService.available ? 'Get it in the Shop, on its own or in the Everything Pack.' : purchaseService.unavailableReason,
-        purchaseService.available ? [{ text: 'Not now', style: 'cancel' }, { text: 'Open Shop', onPress: () => navigation.navigate('Shop') }] : undefined);
-    }
+
+  const signedIn = !!user && !user.guest;
+  const toWelcome = () => navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Welcome' }] }));
+  const toggleSound = async (value: boolean) => { setSound(value); await soundService.setEnabled(value); };
+  const logout = async () => { await authService.logout(); toWelcome(); };
+  const open = (kind: 'email' | 'code' | 'delete') => { setModal(kind); setPassword(''); setModalError(null); setNewEmail(user?.email ?? ''); };
+  const restore = async () => {
+    setRestoring(true); setRestoreMessage(null);
+    try { await purchaseService.restorePurchases(); setRestoreMessage('Purchases restored.'); }
+    catch (error) { setRestoreMessage(error instanceof Error ? error.message : 'Nothing to restore.'); }
+    finally { setRestoring(false); }
   };
-  return <Screen>
-    <ScrollView contentContainerStyle={styles.content}>
-    <Text style={styles.title}>Settings</Text>
+  const submit = async () => {
+    setBusy(true); setModalError(null);
+    try {
+      if (modal === 'email') {
+        await authService.setEmail(newEmail, password);
+        setUser(await authService.currentUser());
+        setModal(null);
+      } else if (modal === 'code') {
+        const code = await authService.newRecoveryCode(password);
+        setModal(null);
+        navigation.navigate('RecoveryCode', { code, then: 'back' });
+      } else if (modal === 'delete') {
+        await authService.deleteAccount(password);
+        setModal(null);
+        toWelcome();
+      }
+    } catch (error) { setModalError(error instanceof Error ? error.message : 'Something went wrong.'); }
+    finally { setBusy(false); }
+  };
+  const openUrl = (url: string | null) => { if (url) void Linking.openURL(url); };
 
-    <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Practice level {progress.level}</Text>
-      <Text style={styles.currentLook}>{progress.xp} XP · {progress.level === MAX_LEVEL ? 'Max level' : `${XP_PER_LEVEL - progress.xp % XP_PER_LEVEL} XP to your next level`}</Text>
-      <View accessibilityRole="progressbar" accessibilityLabel="Practice level progress" accessibilityValue={{ min: 0, max: 100, now: progress.level === MAX_LEVEL ? 100 : progress.xp % XP_PER_LEVEL }} style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress.level === MAX_LEVEL ? 100 : progress.xp % XP_PER_LEVEL}%` }]} /></View>
-      <Text style={styles.note}>Finish a local or computer game with at least 6 moves: 25 XP. Beat the computer: +25 XP. Solve the daily puzzle: 30 XP once per day.</Text>
-      <Text style={styles.currentLook}>{upcoming ? `Next reward: ${upcoming.name} at level ${upcoming.level}` : 'Every level reward unlocked'}</Text>
-      <AppButton title="See levels & rewards" secondary onPress={() => navigation.navigate('Rewards')} />
-      {!!progress.error && <><Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text><AppButton title="Retry loading progress" secondary onPress={() => { void progress.retryLoad(); }} /></>}
-    </View>
-
-    <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Your board, your style</Text>
-      <Text style={styles.rowValue}>Mix unlocked boards and pieces. Earn practice looks by playing, or pick up a premium collection. Cosmetics never change the rules.</Text>
-      <Text style={styles.currentLook}>{appearance.boardTheme.name} · {PIECE_SETS[appearance.pieces].name}</Text>
-      <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.livePreview, { borderColor: appearance.boardTheme.border }]}>
-        {(['black', 'white'] as const).map((color, row) => <View key={color} style={styles.previewRow}>
-          {PIECE_ORDER.map((type, col) => <View key={type} style={[styles.previewSquare, { backgroundColor: (row + col) % 2 ? appearance.boardTheme.dark : appearance.boardTheme.light }]}><PieceView type={type} color={color} set={appearance.pieces} /></View>)}
-        </View>)}
-      </View>
-      <Text style={styles.note}>Includes the Lancer, with the same bishop + one-step movement as before.</Text>
-      {!appearance.loaded && <Text accessibilityLiveRegion="polite" style={styles.note}>Loading your saved look…</Text>}
-      {!!appearance.error && <Text accessibilityRole="alert" style={styles.error}>{appearance.error}</Text>}
-    </View>
-
-    <Text style={styles.sectionTitle}>Boards</Text>
-    {(['available', 'locked'] as const).map(group => { const ids = boardGroups[group]; if (!ids.length) return null; return <View key={group}>
-    <Text style={[styles.groupLabel, group === 'locked' && styles.groupLabelLocked]}>{group === 'available' ? `AVAILABLE · ${ids.length}` : `🔒 LOCKED · ${ids.length}`}</Text>
-    <View style={styles.boardChoices} accessibilityRole="radiogroup" accessibilityLabel={group === 'available' ? 'Available boards' : 'Locked boards'}>
-      {ids.map(id => {
-        const board = BOARD_THEMES[id];
-        const selected = appearance.board === id;
-        const usable = canUseCosmetic(BOARD_ACCESS[id], progress.level, owned);
-        const label = cosmeticLabel(BOARD_ACCESS[id], progress.level);
-        return <Pressable key={id} testID={`board-choice-${id}`} accessibilityRole="radio" accessibilityLabel={`${board.name} board, ${board.description}, ${label}`}
-          accessibilityState={{ checked: selected, disabled: !usable }}
-          onPress={() => { if (usable) void appearance.updateAppearance({ board: id }); else explainLocked(`${board.name} board`, BOARD_ACCESS[id]); }}
-          style={({ pressed }) => [styles.boardChoice, !usable && styles.lockedChoice, selected && styles.chosen, pressed && styles.pressedChoice]}>
-          <View style={styles.swatches} accessible={false}>{[board.light, board.dark, board.light, board.dark].map((color, i) => <View key={i} style={[styles.swatch, { backgroundColor: color }]} />)}</View>
-          <Text style={styles.choiceTitle}>{board.name}{selected ? ' ✓' : ''}</Text>
-          <Text style={styles.note}>{board.description}</Text>
-          <Text style={usable ? styles.unlocked : styles.locked}>{usable ? label : `🔒 ${label}`}</Text>
-        </Pressable>;
-      })}
-    </View></View>; })}
-
-    <Text style={styles.sectionTitle}>Pieces</Text>
-    {(['available', 'locked'] as const).map(group => { const ids = pieceGroups[group]; if (!ids.length) return null; return <View key={group}>
-    <Text style={[styles.groupLabel, group === 'locked' && styles.groupLabelLocked]}>{group === 'available' ? `AVAILABLE · ${ids.length}` : `🔒 LOCKED · ${ids.length}`}</Text>
-    <View accessibilityRole="radiogroup" accessibilityLabel={group === 'available' ? 'Available pieces' : 'Locked pieces'}>
-      {ids.map(id => {
-        const set = PIECE_SETS[id];
-        const selected = appearance.pieces === id;
-        const access = PIECE_ACCESS[id];
-        const usable = canUseCosmetic(access, progress.level, owned);
-        const premium = access.kind === 'premium';
-        const productId = access.kind === 'premium' ? PIECE_SET_PRODUCTS[access.product] : undefined;
-        const label = premium ? (usable ? 'Owned' : price(productId!) ? `Premium · ${price(productId!)}` : 'Premium collection') : cosmeticLabel(access, progress.level);
-        return <Pressable key={id} testID={`piece-choice-${id}`} accessibilityRole="radio" accessibilityLabel={`${set.name} pieces, ${set.description}, ${label}`}
-          accessibilityState={{ checked: selected, disabled: !usable }}
-          onPress={() => { if (usable) void appearance.updateAppearance({ pieces: id }); else explainLocked(set.name, access); }}
-          style={({ pressed }) => [styles.pieceChoice, premium && styles.premiumChoice, !usable && !premium && styles.lockedChoice, selected && styles.chosen, pressed && styles.pressedChoice]}>
-          {premium && <Text style={styles.premiumEyebrow}>{usable ? 'PREMIUM COLLECTION · OWNED' : 'PREMIUM COLLECTION'}</Text>}
-          <Text style={styles.choiceTitle}>{set.name}{selected ? ' ✓' : ''}</Text>
-          <Text style={styles.note}>{set.description}</Text>
-          <Text style={premium ? styles.premiumLabel : usable ? styles.unlocked : styles.locked}>{usable || premium ? label : `🔒 ${label}`}</Text>
-          {premium && <Text style={styles.note}>{id === 'modern' ? 'Sculpted metal profiles, bright bevels and layered silver/gunmetal finishes.' : 'Royal blue lacquer, ivory enamel and gold inlay with ornate sculpted details.'}</Text>}
-          <View style={styles.setPreview} accessible={false} importantForAccessibility="no-hide-descendants">
-            {(['white', 'black'] as const).map(color => <View key={color} style={styles.previewRow}>
-              {PIECE_ORDER.map(type => <View key={type} style={styles.setPiece}><PieceView type={type} color={color} set={id} /></View>)}
-            </View>)}
-          </View>
-          {premium && !usable && productId && <View style={styles.buy}>
-            <AppButton title={!purchaseService.available ? 'Available in the app store version' : buying === productId ? 'Opening store…' : `Buy ${set.name}${price(productId) ? ` · ${price(productId)}` : ''}`}
-              disabled={!purchaseService.available || buying !== null}
-              onPress={() => { void run(productId, () => purchaseService.purchasePieceSet(access.kind === 'premium' ? access.product : 'modern'), `${set.name} unlocked. Tap it to equip.`); }} />
-          </View>}
-        </Pressable>;
-      })}
-    </View></View>; })}
-
-    <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Account</Text>
-      <Text style={styles.rowValue}>{user ? (user.guest ? 'Playing as a guest on this device' : `Signed in as ${user.displayName}`) : 'Not signed in'}</Text>
-      {user?.profile && <Text style={styles.note}>Rating {user.profile.rating} · {user.profile.wins}W {user.profile.losses}L {user.profile.draws}D</Text>}
-      {user?.guest && authService.accountsAvailable && <AppButton title="Create a free account" onPress={() => navigation.navigate('Register')} />}
-      <AppButton title={user?.guest ? 'Leave guest mode' : 'Log out'} onPress={logout} secondary />
-      {user && !user.guest && <>
-        <Text style={styles.note}>Email for password resets: {user.email ?? 'not set'}</Text>
-        <AppButton title={user.email ? 'Change email' : 'Add email for password resets'} secondary onPress={() => openSecure('email')} />
-        <AppButton title="New recovery code" secondary onPress={() => openSecure('code')} />
+  return <Screen><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <Section title="Account">
+      {signedIn ? <>
+        <Row label={user!.displayName} detail={user!.profile ? `Rating ${user!.profile.rating} · ${user!.profile.wins}W ${user!.profile.losses}L ${user!.profile.draws}D` : 'Signed in'} />
+        <Row label={user!.email ? 'Change email' : 'Add email for password resets'} detail={user!.email ?? 'Not set: needed for email password resets'} onPress={() => open('email')} />
+        <Row label="New recovery code" detail="Replaces your old code" onPress={() => open('code')} />
+        <Row label="Log out" onPress={() => { void logout(); }} last />
+      </> : <>
+        <Row label="Playing as a guest" detail="Create a free account to play online and get a rating." />
+        {authService.accountsAvailable && <Row label="Create free account" onPress={() => navigation.navigate('Register')} />}
+        {authService.accountsAvailable && <Row label="Log in" onPress={() => navigation.navigate('Login')} />}
+        <Row label="Leave guest mode" detail="Back to the welcome screen" onPress={() => { void logout(); }} last />
       </>}
-      {user && !user.guest && <AppButton title="Delete account" secondary onPress={() => { setDeletePassword(''); setDeleteError(null); setDeleting(true); }} />}
-      {!!PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
-      {!!TERMS_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(TERMS_URL!); }}>Terms of Service</Text>}
-    </View>
+    </Section>
 
-    <View style={styles.card}>
-      <View style={styles.row}><Text style={styles.rowLabel}>Sound effects</Text><Switch value={sound} onValueChange={toggle} trackColor={{ true: theme.colors.accent }} /></View>
+    <Section title="Game">
+      <Row label="Sound effects" right={<Switch accessibilityLabel="Sound effects" value={sound} onValueChange={value => { void toggleSound(value); }} trackColor={{ true: theme.colors.accent }} />} />
+      <Row label="Boards & pieces" detail="Choose your board and piece set" onPress={() => navigation.navigate('Collection')} />
+      <Row label="Levels & rewards" onPress={() => navigation.navigate('Rewards')} last />
+    </Section>
 
-    </View>
+    <Section title="Purchases">
+      <Row label="Shop" detail="Remove ads · Premium piece sets · Everything Pack" onPress={() => navigation.navigate('Shop')} />
+      <Row label={restoring ? 'Restoring…' : 'Restore purchases'} detail={restoreMessage ?? (purchaseService.available ? 'Bought on another phone or reinstalled?' : purchaseService.unavailableReason)}
+        onPress={purchaseService.available && !restoring ? () => { void restore(); } : undefined} last />
+    </Section>
 
-    <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Free play. Optional extras.</Text>
-      <Text style={styles.rowValue}>Online play always stays free. Paid extras are ad removal and premium cosmetics only. No gameplay advantages.</Text>
-      <AppButton title="Open the Shop" onPress={() => navigation.navigate('Shop')} />
-      {!purchaseService.available && <Text style={styles.note}>{purchaseService.unavailableReason}</Text>}
-      {/* Offered only to players who own none of the extras yet, so nobody pays twice for the same item. */}
-      {!owned.adsRemoved && owned.premiumPieceSets.length === 0 && <View style={styles.bundle}>
-        <Text style={styles.bundleEyebrow}>BEST VALUE</Text>
-        <Text style={styles.bundleTitle}>Everything Pack</Text>
-        <Text style={styles.rowValue}>Remove ads + Forged Metal + Royal Lacquer pieces</Text>
-        <AppButton title={buying === PRODUCT_IDS.everything ? 'Opening store…' : `Get everything${price(PRODUCT_IDS.everything) ? ` · ${price(PRODUCT_IDS.everything)}` : ''}`}
-          disabled={!purchaseService.available || buying !== null}
-          onPress={() => { void run(PRODUCT_IDS.everything, () => purchaseService.purchaseEverything(), 'Everything unlocked. Thank you!'); }} />
-      </View>}
-      {owned.adsRemoved ? <Text style={styles.unlocked}>Ads removed. Thank you for supporting ShiftChess!</Text> :
-        <AppButton title={buying === PRODUCT_IDS.removeAds ? 'Opening store…' : `Remove ads${price(PRODUCT_IDS.removeAds) ? ` · ${price(PRODUCT_IDS.removeAds)}` : ''}`}
-          disabled={!purchaseService.available || buying !== null}
-          onPress={() => { void run(PRODUCT_IDS.removeAds, () => purchaseService.purchaseRemoveAds(), 'Ads removed. Thank you!'); }} />}
-      <AppButton title={buying === 'restore' ? 'Restoring…' : 'Restore purchases'} secondary disabled={!purchaseService.available || buying !== null}
-        onPress={() => { void run('restore', () => purchaseService.restorePurchases(), 'Purchases restored.'); }} />
-      {!!storeMessage && <Text accessibilityLiveRegion="polite" style={styles.note}>{storeMessage}</Text>}
-      {__DEV__ && <AppButton title="Preview ad placement (dev)" onPress={() => { void adService.maybeShowInterstitial('manual_test'); }} secondary />}
-    </View>
-    <Modal visible={secure !== null} transparent animationType="fade" onRequestClose={() => setSecure(null)}>
+    <Section title="Help & legal">
+      {!!SUPPORT_URL && <Row label="Help & support" onPress={() => openUrl(SUPPORT_URL)} />}
+      {!!PRIVACY_URL && <Row label="Privacy Policy" onPress={() => openUrl(PRIVACY_URL)} />}
+      {!!TERMS_URL && <Row label="Terms of Service" onPress={() => openUrl(TERMS_URL)} />}
+      <Row label="How to play" onPress={() => navigation.navigate('Rules')} last />
+    </Section>
+
+    {signedIn && <Section title="Account removal">
+      <Row label="Delete account" detail="Permanently deletes your account and data" danger onPress={() => open('delete')} last />
+    </Section>}
+
+    {__DEV__ && <AppButton title="Preview ad placement (dev)" secondary onPress={() => { void adService.maybeShowInterstitial('manual_test'); }} />}
+    <Text style={styles.version}>ShiftChess {appJson.expo.version} · Chain Software Group</Text>
+
+    <Modal visible={modal !== null} transparent animationType="fade" onRequestClose={() => setModal(null)}>
       <KeyboardAvoidingView behavior="padding" style={styles.backdrop}><View style={styles.modalCard}>
-        <Text style={styles.sectionTitle}>{secure === 'email' ? 'Email for password resets' : 'Make a new recovery code'}</Text>
-        <Text style={styles.rowValue}>{secure === 'email' ? 'Used only to send reset links. Leave it empty to remove it.' : 'Your old recovery code will stop working. You will see the new one once.'}</Text>
-        {secure === 'email' && <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="you@example.com" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" keyboardType="email-address" autoComplete="email" value={newEmail} onChangeText={setNewEmail} />}
-        <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="Current password" placeholderTextColor={theme.colors.textFaint} secureTextEntry value={securePassword} onChangeText={setSecurePassword} autoComplete="password" />
-        {!!secureError && <Text accessibilityRole="alert" style={styles.error}>{secureError}</Text>}
-        <AppButton title={secureBusy ? 'Saving…' : secure === 'email' ? 'Save email' : 'Make new code'} onPress={() => { void submitSecure(); }} disabled={!securePassword || secureBusy} />
-        <AppButton title="Cancel" secondary onPress={() => setSecure(null)} />
+        <Text style={styles.modalTitle}>{modal === 'email' ? 'Email for password resets' : modal === 'code' ? 'Make a new recovery code' : 'Delete your account?'}</Text>
+        <Text style={styles.modalCopy}>{modal === 'email' ? 'Used only to send reset links. Leave it empty to remove it.'
+          : modal === 'code' ? 'Your old recovery code will stop working. You will see the new one once.'
+          : 'This permanently deletes your username, email, rating, game record and purchase records on our servers. Store purchases can be restored to a new account. This cannot be undone.'}</Text>
+        {modal === 'email' && <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="you@example.com" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" keyboardType="email-address" autoComplete="email" value={newEmail} onChangeText={setNewEmail} />}
+        <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder={modal === 'delete' ? 'Enter your password' : 'Current password'} placeholderTextColor={theme.colors.textFaint} secureTextEntry value={password} onChangeText={setPassword} autoComplete="password" />
+        {!!modalError && <Text accessibilityRole="alert" style={styles.error}>{modalError}</Text>}
+        <AppButton title={busy ? 'Working…' : modal === 'email' ? 'Save email' : modal === 'code' ? 'Make new code' : 'Delete permanently'} onPress={() => { void submit(); }} disabled={!password || busy} />
+        <AppButton title="Cancel" secondary onPress={() => setModal(null)} />
       </View></KeyboardAvoidingView>
     </Modal>
-    <Modal visible={deleting} transparent animationType="fade" onRequestClose={() => setDeleting(false)}>
-      <KeyboardAvoidingView behavior="padding" style={styles.backdrop}><View style={styles.modalCard}>
-        <Text style={styles.sectionTitle}>Delete your account?</Text>
-        <Text style={styles.rowValue}>This permanently deletes your username, email, rating, game record and purchase records on our servers. Store purchases can be restored to a new account. This cannot be undone.</Text>
-        <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="Enter your password" placeholderTextColor={theme.colors.textFaint} secureTextEntry value={deletePassword} onChangeText={setDeletePassword} autoComplete="password" />
-        {!!deleteError && <Text accessibilityRole="alert" style={styles.error}>{deleteError}</Text>}
-        <AppButton title="Delete permanently" onPress={() => { void removeAccount(); }} disabled={!deletePassword} />
-        <AppButton title="Cancel" secondary onPress={() => setDeleting(false)} />
-      </View></KeyboardAvoidingView>
-    </Modal>
-    </ScrollView>
-  </Screen>;
+  </ScrollView></Screen>;
 }
+
 const styles = StyleSheet.create({
-  content: { paddingBottom: 24, width: '100%', maxWidth: 700, alignSelf: 'center' },
-  progressTrack: { height: 7, backgroundColor: theme.colors.borderSoft, borderRadius: 4, overflow: 'hidden', marginVertical: 8 },
-  progressFill: { height: 7, backgroundColor: theme.colors.accent },
-  buy: { marginTop: 10 },
-  bundle: { borderWidth: 2, borderColor: theme.colors.accent, backgroundColor: theme.colors.surfaceAlt, borderRadius: theme.radius.lg, padding: 14, marginTop: 12, marginBottom: 6 },
-  bundleEyebrow: { color: theme.colors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
-  bundleTitle: { color: theme.colors.text, fontSize: 18, fontWeight: '900', marginTop: 2 },
-  link: { color: theme.colors.textDim, textDecorationLine: 'underline', marginTop: 12, fontSize: 13, textAlign: 'center' },
+  content: { paddingBottom: 30 },
+  section: { marginTop: 8, marginBottom: 14 },
+  sectionTitle: { color: theme.colors.textFaint, fontSize: 12, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
+  group: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.borderSoft, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, minHeight: 52 },
+  divider: { borderBottomWidth: 1, borderColor: theme.colors.borderSoft },
+  pressed: { backgroundColor: theme.colors.surfaceAlt },
+  rowLabel: { color: theme.colors.text, fontSize: 16, fontWeight: '700' },
+  rowDetail: { color: theme.colors.textDim, fontSize: 13, marginTop: 2, lineHeight: 18 },
+  danger: { color: theme.colors.danger },
+  chevron: { color: theme.colors.textDim, fontSize: 24, fontWeight: '700', paddingLeft: 10 },
+  version: { color: theme.colors.textFaint, fontSize: 12, textAlign: 'center', marginTop: 10 },
   backdrop: { flex: 1, backgroundColor: '#000a', justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 20, borderWidth: 1, borderColor: theme.colors.border, maxWidth: 520, width: '100%', alignSelf: 'center' },
+  modalTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '800', marginBottom: 6 },
+  modalCopy: { color: theme.colors.textDim, fontSize: 14, lineHeight: 20 },
   input: { backgroundColor: theme.colors.surfaceAlt, color: theme.colors.text, padding: 13, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border, marginTop: 14 },
-  premiumChoice: { borderColor: '#ab8741', backgroundColor: '#202735' },
-  premiumEyebrow: { color: '#e3bf77', fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 8 },
-  premiumLabel: { color: '#e3bf77', fontWeight: '800', fontSize: 12, marginTop: 6 },
-  unlocked: { color: theme.colors.success, fontSize: 12, fontWeight: '700', marginTop: 6 },
-  locked: { color: theme.colors.textDim, fontSize: 12, fontWeight: '700', marginTop: 6 },
-  sectionTitle: { color: theme.colors.text, fontSize: 20, fontWeight: '800', marginBottom: 10 },
-  currentLook: { color: theme.colors.accent, fontSize: 14, fontWeight: '700', marginTop: 14, marginBottom: 8 },
-  livePreview: { borderWidth: 2, borderRadius: 6, overflow: 'hidden' },
-  previewRow: { flexDirection: 'row' },
-  previewSquare: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
-  note: { color: theme.colors.textDim, fontSize: 12, lineHeight: 18, marginTop: 4 },
   error: { color: theme.colors.danger, fontSize: 13, marginTop: 8 },
-  boardChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  boardChoice: { flexGrow: 1, flexBasis: '45%', backgroundColor: theme.colors.surface, borderWidth: 2, borderColor: theme.colors.borderSoft, borderRadius: 12, padding: 12, minHeight: 112 },
-  chosen: { borderColor: theme.colors.accent, backgroundColor: theme.colors.surfaceAlt },
-  swatches: { flexDirection: 'row', borderRadius: 4, overflow: 'hidden', height: 26, marginBottom: 8 },
-  swatch: { flex: 1 },
-  choiceTitle: { color: theme.colors.text, fontSize: 15, fontWeight: '800' },
-  pieceChoice: { backgroundColor: theme.colors.surface, borderWidth: 2, borderColor: theme.colors.borderSoft, borderRadius: 12, padding: 12, marginBottom: 12 },
-  setPreview: { marginTop: 10, backgroundColor: '#c7b9a1', borderRadius: 6, padding: 4, maxWidth: 420 },
-  setPiece: { flex: 1, aspectRatio: 1, maxHeight: 52, alignItems: 'center', justifyContent: 'center' },
-  lockedChoice: { opacity: 0.6 },
-  groupLabel: { color: theme.colors.success, fontSize: 12, fontWeight: '900', letterSpacing: 1.2, marginBottom: 8, marginTop: 4 },
-  groupLabelLocked: { color: theme.colors.textFaint },
-  pressedChoice: { opacity: 0.8, transform: [{ scale: 0.99 }] },
-  title: { fontSize: 34, fontWeight: '900', color: theme.colors.text, marginVertical: 16 },
-  card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.borderSoft, padding: 16, marginBottom: 14 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-  rowLabel: { color: theme.colors.text, fontSize: 15, fontWeight: '700' },
-  rowValue: { color: theme.colors.textDim, fontSize: 14, marginTop: 4 },
 });
