@@ -253,7 +253,7 @@ export function GameScreen({ route, navigation }: Props) {
       </View>
     </View>
 
-    <ChessBoard board={state.board} selected={state.selected ?? null} moves={moves} onSquarePress={tap} disabled={inputLocked || !!pendingPromotion || state.status !== 'active'} />
+    <ChessBoard edgeToEdge board={state.board} selected={state.selected ?? null} moves={moves} onSquarePress={tap} disabled={inputLocked || !!pendingPromotion || state.status !== 'active'} />
 
     <View style={styles.capturedRow}>
       <View style={styles.capturedGroup}>
@@ -306,8 +306,8 @@ export function GameScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 24, width: '100%', maxWidth: 680, alignSelf: 'center' },
-  screen: { paddingHorizontal: theme.space(4) },
+  content: { paddingBottom: 24, paddingHorizontal: theme.space(4), width: '100%', maxWidth: 680, alignSelf: 'center' },
+  screen: { paddingHorizontal: 0 },
   header: { marginBottom: 10, alignItems: 'center' },
   eyebrow: { color: theme.colors.cyan, fontSize: 11, fontWeight: '900', letterSpacing: 1.8 },
   title: { fontSize: 24, fontWeight: '900', color: theme.colors.text, marginTop: 2 },

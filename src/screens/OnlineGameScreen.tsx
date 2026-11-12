@@ -49,14 +49,14 @@ export function OnlineGameScreen({ route, navigation }: Props) {
     } else setSelected(game.board[row][col]?.color === playerColor ? { row, col } : null);
   }
   function promote(type: PieceType) { if (promotion && !locked) submit({ ...promotion, promotion: type }); }
-  return <Screen><ScrollView contentContainerStyle={styles.content}>
+  return <Screen style={styles.screen}><ScrollView contentContainerStyle={styles.content}>
     <Text style={styles.eyebrow}>{match.rated ? 'RATED · HUMAN OPPONENT' : 'HUMAN OPPONENT · UNRATED'}</Text>
     <Text style={styles.title}>vs {match.opponentName}</Text>
     <Text style={styles.copy}>You play {playerColor} · 3 minutes + 2 seconds per move</Text>
     <Text style={styles.status}>{status}</Text>
     {!!state.error && <View style={styles.notice}><Text style={styles.warning}>{state.error}</Text><AppButton title="Retry connection" secondary onPress={() => { void onlineClient?.sync().catch(() => undefined); }} disabled={state.pending || state.connection === 'expired'} /></View>}
     <View style={styles.clocks}>{(['black', 'white'] as const).map(color => <View key={color} style={[styles.clock, active && clock.active === color && styles.activeClock]}><Text style={styles.eyebrow}>{color.toUpperCase()}</Text><Text style={styles.clockValue}>{formatMs(color === 'white' ? clock.whiteMs : clock.blackMs)}</Text></View>)}</View>
-    <ChessBoard board={game.board} selected={selected} moves={moves} onSquarePress={tap} disabled={locked || !!promotion} orientation={playerColor} />
+    <ChessBoard edgeToEdge board={game.board} selected={selected} moves={moves} onSquarePress={tap} disabled={locked || !!promotion} orientation={playerColor} />
     <AppButton title="Resign" secondary onPress={() => setConfirmResign(true)} disabled={!active || state.pending || state.connection !== 'connected'} />
     <Text style={styles.copy}>Leaving this screen does not pause or resign. Your clock keeps running; return through Online 3+2 to resume.</Text>
     <Text style={styles.subhead}>Move history</Text>
@@ -75,7 +75,8 @@ export function OnlineGameScreen({ route, navigation }: Props) {
   </ScrollView></Screen>;
 }
 const styles = StyleSheet.create({
-  content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingBottom: 30 },
+  screen: { paddingHorizontal: 0 },
+  content: { width: '100%', maxWidth: 680, alignSelf: 'center', paddingBottom: 30, paddingHorizontal: theme.space(4) },
   eyebrow: { color: theme.colors.cyan, textAlign: 'center', fontWeight: '800', fontSize: 11, letterSpacing: 1, marginVertical: 6 },
   title: { color: theme.colors.text, fontWeight: '900', fontSize: 25, textAlign: 'center' },
   copy: { color: theme.colors.textDim, fontSize: 13, lineHeight: 20, marginVertical: 6, textAlign: 'center' },

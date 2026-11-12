@@ -62,7 +62,7 @@ export function DailyPuzzleScreen({ navigation }: Props) {
   }
   if (loadFailed) return <Screen><Text style={styles.copy}>The daily puzzle could not be loaded.</Text><AppButton title="Retry puzzle" onPress={loadPuzzle} /></Screen>;
   if (!puzzle) return <Screen style={styles.loading}><ActivityIndicator color={theme.colors.cyan} /><Text style={styles.copy}>Generating today's puzzle…</Text></Screen>;
-  return <Screen>
+  return <Screen style={styles.screen}>
     <ScrollView contentContainerStyle={styles.content}>
     <View style={styles.headerRow}>
       <View style={{ flex: 1 }}>
@@ -74,7 +74,7 @@ export function DailyPuzzleScreen({ navigation }: Props) {
       </View>
     </View>
     <Text style={styles.copy}>{puzzle.prompt.replace(/Shifter/g, 'Lancer')}</Text>
-    <ChessBoard board={puzzle.board} selected={selected} moves={moves} onSquarePress={tap} disabled={complete} />
+    <ChessBoard edgeToEdge board={puzzle.board} selected={selected} moves={moves} onSquarePress={tap} disabled={complete} />
     <View style={styles.card}>
       <Text style={complete ? styles.success : styles.feedback}>{message || 'Tap a white piece, then choose its destination.'}</Text>
       <Text style={styles.queue}>Solve once per day for 30 practice XP. Saved on this device.</Text>
@@ -88,7 +88,8 @@ export function DailyPuzzleScreen({ navigation }: Props) {
   </Screen>;
 }
 const styles = StyleSheet.create({
-  content: { paddingBottom: 24, width: '100%', maxWidth: 680, alignSelf: 'center' },
+  screen: { paddingHorizontal: 0 },
+  content: { paddingBottom: 24, paddingHorizontal: theme.space(4), width: '100%', maxWidth: 680, alignSelf: 'center' },
   loading: { alignItems: 'center', justifyContent: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 8 },
   eyebrow: { color: theme.colors.cyan, fontWeight: '900', letterSpacing: 1.5, fontSize: 12 },
