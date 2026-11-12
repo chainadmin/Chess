@@ -53,7 +53,7 @@ export function ShopScreen(_props: Props) {
       if (item.id === PRODUCT_IDS.everything) await purchaseService.purchaseEverything();
       else if (item.id === PRODUCT_IDS.removeAds) await purchaseService.purchaseRemoveAds();
       else await purchaseService.purchasePieceSet(item.id === PRODUCT_IDS.forgedMetal ? 'modern' : 'tournament');
-      setMessage(`${item.name} unlocked. Thank you!`);
+      setMessage(item.id === PRODUCT_IDS.removeAds ? 'Ads removed. Thank you!' : `${item.name} unlocked. Thank you! Equip it in Boards & pieces.`);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'The purchase did not complete.'); }
     finally { setBusy(null); }
   };

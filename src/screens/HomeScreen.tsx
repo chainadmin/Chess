@@ -69,7 +69,7 @@ export function HomeScreen({ navigation }: Props) {
         <Pressable accessibilityRole="button" accessibilityLabel="Shop" onPress={() => navigation.navigate('Shop')} style={({ pressed }) => [styles.shopButton, pressed && styles.pressed]}>
           <Text style={styles.shopText}>🛍️ Shop</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Settings and cosmetics" onPress={() => navigation.navigate('Settings')} style={styles.iconButton}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => navigation.navigate('Settings')} style={styles.iconButton}>
           <Text style={styles.iconText}>⚙︎</Text>
         </Pressable>
       </View>
@@ -121,14 +121,24 @@ export function HomeScreen({ navigation }: Props) {
         <Text style={styles.emoji}>🏆</Text>
       </Tile>}
     </View>
+    <Text style={styles.section}>Your collection</Text>
     <View style={styles.row}>
+      <Tile label="Boards & pieces" detail="Choose your look" onPress={() => navigation.navigate('Collection')}>
+        <View style={styles.pair}><PieceView type="Q" color="white" set={pieces} size={34} /><PieceView type="S" color="black" set={pieces} size={34} /></View>
+      </Tile>
       <Tile label="Levels & rewards" detail={unlock ? `Next: ${unlock.name}` : 'All rewards unlocked'} onPress={() => navigation.navigate('Rewards')}>
         <Text style={styles.emoji}>🎁</Text>
       </Tile>
-      <Tile label="Shop" detail="Remove ads · Premium pieces" onPress={() => navigation.navigate('Shop')}>
-        <Text style={styles.emoji}>🛍️</Text>
-      </Tile>
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Shop. Remove ads, premium piece sets and the Everything Pack." onPress={() => navigation.navigate('Shop')}
+      style={({ pressed }) => [styles.shopCard, pressed && styles.pressed]}>
+      <Text style={styles.shopEmoji}>🛍️</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.tileLabel}>Shop</Text>
+        <Text style={styles.tileDetail}>Remove ads · Premium piece sets · Everything Pack</Text>
+      </View>
+      <Text style={styles.shopChevron}>›</Text>
+    </Pressable>
 
     <Pressable accessibilityRole="button" accessibilityLabel={`Practice level ${progress.level}. See levels and rewards.`} onPress={() => navigation.navigate('Rewards')} style={({ pressed }) => [styles.levelCard, pressed && styles.pressed]}>
       <View style={styles.levelTop}>
@@ -143,7 +153,7 @@ export function HomeScreen({ navigation }: Props) {
     <View style={styles.footer}>
       <Text accessibilityRole="link" style={styles.footerLink} onPress={() => navigation.navigate('Rules')}>How to play</Text>
       <Text style={styles.footerDot}>·</Text>
-      <Text accessibilityRole="link" style={styles.footerLink} onPress={() => navigation.navigate('Settings')}>Boards & pieces</Text>
+      <Text accessibilityRole="link" style={styles.footerLink} onPress={() => navigation.navigate('Settings')}>Settings</Text>
     </View>
   </ScrollView></Screen>;
 }
@@ -189,6 +199,9 @@ const styles = StyleSheet.create({
   tileDetail: { color: theme.colors.textFaint, fontSize: 12, fontWeight: '600', marginTop: 2 },
   pair: { flexDirection: 'row' },
   emoji: { fontSize: 32 },
+  shopCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.accent, padding: 14, marginBottom: 10 },
+  shopEmoji: { fontSize: 30 },
+  shopChevron: { color: theme.colors.gold, fontSize: 26, fontWeight: '800' },
   levelCard: { marginTop: 4, padding: 14, borderRadius: theme.radius.lg, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.borderSoft },
   levelTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   levelTitle: { color: theme.colors.text, fontSize: 16, fontWeight: '900' },

@@ -96,7 +96,7 @@ export function RewardsScreen({ navigation }: Props) {
           <View style={[styles.chip, has && styles.chipDone]}><Text style={[styles.chipText, has && styles.chipDoneText]}>{has ? 'Owned' : 'Premium'}</Text></View>
         </View>;
       })}
-      <AppButton title="Boards & pieces" secondary onPress={() => navigation.navigate('Settings')} />
+      <AppButton title="Boards & pieces" secondary onPress={() => navigation.navigate('Collection')} />
     </View>
     {!!progress.error && <Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text>}
   </ScrollView></Screen>;
