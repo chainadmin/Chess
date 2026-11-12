@@ -272,7 +272,7 @@ export function GameScreen({ route, navigation }: Props) {
     </View>
 
     <Text style={styles.subhead}>Move History</Text>
-    <ScrollView style={styles.history}>{state.history.map((h, i) => <Text key={i} style={styles.historyLine}>{state.history.length - i}. {h}</Text>)}</ScrollView>
+    <ScrollView style={styles.history} nestedScrollEnabled>{state.history.length === 0 && <Text style={styles.historyLine}>No moves yet.</Text>}{state.history.map((h, i) => <Text key={i} style={styles.historyLine}>{state.history.length - i}. {h}</Text>)}</ScrollView>
     <AppButton title="Back Home" onPress={goHome} secondary />
 
     <Modal visible={!!resignRequest && state.status === 'active' && isFocused} onRequestClose={() => setResignRequest(null)} transparent animationType="fade">

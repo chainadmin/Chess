@@ -98,7 +98,7 @@ export function RewardsScreen({ navigation }: Props) {
       })}
       <AppButton title="Boards & pieces" secondary onPress={() => navigation.navigate('Settings')} />
     </View>
-    {progress.error && <Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text>}
+    {!!progress.error && <Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text>}
   </ScrollView></Screen>;
 }
 

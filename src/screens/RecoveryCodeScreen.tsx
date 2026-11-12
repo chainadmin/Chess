@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Screen } from '../components/Screen';
@@ -29,7 +29,7 @@ export function RecoveryCodeScreen({ route, navigation }: Props) {
       <Text selectable numberOfLines={1} adjustsFontSizeToFit style={styles.code}>{code}</Text>
     </View>
     <AppButton title="Share / copy code" secondary onPress={() => { void share(); }} />
-    {note && <Text accessibilityLiveRegion="polite" style={styles.note}>{note}</Text>}
+    {!!note && <Text accessibilityLiveRegion="polite" style={styles.note}>{note}</Text>}
     <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: saved }} onPress={() => setSaved(value => !value)} style={styles.check}>
       <View style={[styles.box, saved && styles.boxOn]}>{saved && <Text style={styles.tick}>✓</Text>}</View>
       <Text style={styles.checkText}>I saved my recovery code</Text>
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, fontWeight: '900', color: theme.colors.text, marginTop: 4, marginBottom: 10 },
   copy: { color: theme.colors.textDim, fontSize: 15, lineHeight: 22 },
   codeCard: { marginVertical: 22, paddingVertical: 22, paddingHorizontal: 12, borderRadius: theme.radius.lg, borderWidth: 2, borderStyle: 'dashed', borderColor: theme.colors.accent, backgroundColor: theme.colors.surface, alignItems: 'center' },
-  code: { color: theme.colors.text, fontSize: 22, fontWeight: '900', letterSpacing: 1, fontVariant: ['tabular-nums'], fontFamily: 'Courier' },
+  code: { color: theme.colors.text, fontSize: 22, fontWeight: '900', letterSpacing: 1, fontVariant: ['tabular-nums'], fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }) },
   note: { color: theme.colors.textDim, textAlign: 'center', marginTop: 6 },
   check: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
   box: { width: 26, height: 26, borderRadius: 7, borderWidth: 2, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' },

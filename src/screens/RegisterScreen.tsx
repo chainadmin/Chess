@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Text, TextInput, StyleSheet, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Screen } from '../components/Screen';
+import { FormScreen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
 import { authService, MIN_PASSWORD_LENGTH, USERNAME_RULES } from '../services/auth/AuthService';
 import { PRIVACY_URL, TERMS_URL } from '../services/api/ApiClient';
@@ -26,20 +26,20 @@ export function RegisterScreen({ navigation }: Props) {
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   };
-  return <Screen>
+  return <FormScreen>
     <Text style={styles.eyebrow}>JOIN SHIFTCHESS</Text>
     <Text style={styles.title}>Register</Text>
     <View style={styles.form}>
       <Text style={styles.label}>Username</Text>
-      <TextInput style={styles.input} placeholder="Pick a username" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} autoComplete="username-new" textContentType="username" maxLength={20} value={username} onChangeText={setUsername} />
+      <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="Pick a username" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} autoComplete="username-new" textContentType="username" maxLength={20} value={username} onChangeText={setUsername} />
       <Text style={styles.hint}>{USERNAME_RULES}. Other players will see it.</Text>
       <Text style={styles.label}>Email <Text style={styles.optional}>(optional)</Text></Text>
-      <TextInput style={styles.input} placeholder="For password resets only" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" value={email} onChangeText={setEmail} />
+      <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="For password resets only" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" value={email} onChangeText={setEmail} />
       <Text style={styles.hint}>Never shown to other players. No marketing email.</Text>
       <Text style={styles.label}>Password</Text>
-      <TextInput style={styles.input} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password-new" textContentType="newPassword" value={password} onChangeText={setPassword} />
+      <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`} placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password-new" textContentType="newPassword" value={password} onChangeText={setPassword} />
       <Text style={styles.label}>Confirm Password</Text>
-      <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password-new" textContentType="newPassword" value={confirm} onChangeText={setConfirm} onSubmitEditing={register} />
+      <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="••••••••" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password-new" textContentType="newPassword" value={confirm} onChangeText={setConfirm} onSubmitEditing={register} />
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </View>
     <AppButton title={busy ? 'Creating account…' : 'Create Account'} onPress={register} disabled={busy} />
@@ -48,7 +48,7 @@ export function RegisterScreen({ navigation }: Props) {
       <Text accessibilityRole="link" style={styles.link} onPress={() => { if (TERMS_URL) void Linking.openURL(TERMS_URL); }}>Terms of Service</Text> and{' '}
       <Text accessibilityRole="link" style={styles.link} onPress={() => { if (PRIVACY_URL) void Linking.openURL(PRIVACY_URL); }}>Privacy Policy</Text>.
     </Text>
-  </Screen>;
+  </FormScreen>;
 }
 const styles = StyleSheet.create({
   eyebrow: { color: theme.colors.cyan, fontWeight: '900', letterSpacing: 1.6, fontSize: 12, marginTop: 12 },

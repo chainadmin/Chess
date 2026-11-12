@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RootStackParamList } from '../navigation/types';
-import { Screen } from '../components/Screen';
+import { FULL_SCREEN, Screen } from '../components/Screen';
 import { PieceView } from '../components/PieceView';
 import { MiniBoard } from '../components/MiniBoard';
 import { authService, User } from '../services/auth/AuthService';
@@ -59,7 +59,7 @@ export function HomeScreen({ navigation }: Props) {
   const unlock = nextUnlock(progress.level);
   const online = !!onlineClient;
 
-  return <Screen><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  return <Screen edges={FULL_SCREEN}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <View style={styles.header}>
       <View style={styles.brand}>
         <View style={styles.mark}><PieceView type="S" color="white" set={pieces} size={22} /></View>
@@ -84,7 +84,7 @@ export function HomeScreen({ navigation }: Props) {
           <Text style={styles.heroEyebrow}>{online ? '● LIVE · RATED 3+2' : 'ONLINE · 3+2'}</Text>
           <Text style={styles.heroTitle}>Play a real{'\n'}opponent</Text>
           <Text style={styles.heroDetail}>{profile ? `Rating ${profile.rating} · ${ratingTitle(profile.rating)}` : 'Free account · Always free'}</Text>
-          <View style={styles.heroButton}><Text style={styles.heroButtonText}>{profile || !authService.accountsAvailable ? 'Find a game  →' : 'Create free account  →'}</Text></View>
+          <View style={styles.heroButton}><Text style={styles.heroButtonText}>{profile || !authService.accountsAvailable ? 'Find a game  →' : 'Sign up free  →'}</Text></View>
         </View>
         <View style={styles.heroArt} accessible={false}>
           <View style={styles.heroPieceBack}><PieceView type="K" color="black" set={pieces} size={70} /></View>
@@ -137,7 +137,7 @@ export function HomeScreen({ navigation }: Props) {
       </View>
       <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: levelPct }} style={styles.track}><View style={[styles.fill, { width: `${levelPct}%` }]} /></View>
       <Text style={styles.levelHint}>{unlock ? `Next unlock: ${unlock.name} at level ${unlock.level}` : 'Every practice look unlocked'} · <Text style={styles.levelLink}>See all rewards ›</Text></Text>
-      {progress.error && <Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text>}
+      {!!progress.error && <Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text>}
     </Pressable>
 
     <View style={styles.footer}>

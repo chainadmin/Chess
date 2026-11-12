@@ -69,7 +69,7 @@ export function ShopScreen(_props: Props) {
     <Text style={styles.title}>Shop</Text>
     <Text style={styles.intro}>Everything in ShiftChess is free to play. These are cosmetic or remove ads; none give a gameplay advantage. One-time purchases, yours to keep.</Text>
     {!purchaseService.available && <View style={styles.notice}><Text style={styles.noticeText}>{purchaseService.unavailableReason}</Text></View>}
-    {loadError && <View style={styles.notice}><Text style={styles.noticeText}>{loadError}</Text><AppButton title="Try again" secondary onPress={load} /></View>}
+    {!!loadError && <View style={styles.notice}><Text style={styles.noticeText}>{loadError}</Text><AppButton title="Try again" secondary onPress={load} /></View>}
     {purchaseService.available && products === null && <ActivityIndicator color={theme.colors.cyan} style={{ marginVertical: 20 }} />}
 
     {visible.map(item => {
@@ -94,7 +94,7 @@ export function ShopScreen(_props: Props) {
       </View>;
     })}
 
-    {message && <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text>}
+    {!!message && <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text>}
     <AppButton title={busy === 'restore' ? 'Restoring…' : 'Restore purchases'} secondary disabled={!purchaseService.available || busy !== null} onPress={() => { void restore(); }} />
     <Text style={styles.footnote}>Bought on another phone, or reinstalled? Restore purchases while signed in to the same App Store or Google Play account. Payment is handled by the store.</Text>
   </ScrollView></Screen>;

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Text, StyleSheet, Switch, View, ScrollView, Pressable, Modal, TextInput, Linking } from 'react-native';
+import { Alert, Text, StyleSheet, Switch, View, ScrollView, Pressable, Modal, TextInput, Linking, KeyboardAvoidingView } from 'react-native';
 import { useFocusEffect, CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -102,7 +102,7 @@ export function SettingsScreen({ navigation }: Props) {
       <Text style={styles.note}>Finish a local or computer game with at least 6 moves: 25 XP. Beat the computer: +25 XP. Solve the daily puzzle: 30 XP once per day.</Text>
       <Text style={styles.currentLook}>{upcoming ? `Next reward: ${upcoming.name} at level ${upcoming.level}` : 'Every level reward unlocked'}</Text>
       <AppButton title="See levels & rewards" secondary onPress={() => navigation.navigate('Rewards')} />
-      {progress.error && <><Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text><AppButton title="Retry loading progress" secondary onPress={() => { void progress.retryLoad(); }} /></>}
+      {!!progress.error && <><Text accessibilityRole="alert" style={styles.error}>{progress.error}</Text><AppButton title="Retry loading progress" secondary onPress={() => { void progress.retryLoad(); }} /></>}
     </View>
 
     <View style={styles.card}>
@@ -116,7 +116,7 @@ export function SettingsScreen({ navigation }: Props) {
       </View>
       <Text style={styles.note}>Includes the Lancer, with the same bishop + one-step movement as before.</Text>
       {!appearance.loaded && <Text accessibilityLiveRegion="polite" style={styles.note}>Loading your saved look…</Text>}
-      {appearance.error && <Text accessibilityRole="alert" style={styles.error}>{appearance.error}</Text>}
+      {!!appearance.error && <Text accessibilityRole="alert" style={styles.error}>{appearance.error}</Text>}
     </View>
 
     <Text style={styles.sectionTitle}>Boards</Text>
@@ -187,8 +187,8 @@ export function SettingsScreen({ navigation }: Props) {
         <AppButton title="New recovery code" secondary onPress={() => openSecure('code')} />
       </>}
       {user && !user.guest && <AppButton title="Delete account" secondary onPress={() => { setDeletePassword(''); setDeleteError(null); setDeleting(true); }} />}
-      {PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
-      {TERMS_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(TERMS_URL!); }}>Terms of Service</Text>}
+      {!!PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
+      {!!TERMS_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(TERMS_URL!); }}>Terms of Service</Text>}
     </View>
 
     <View style={styles.card}>
@@ -216,29 +216,29 @@ export function SettingsScreen({ navigation }: Props) {
           onPress={() => { void run(PRODUCT_IDS.removeAds, () => purchaseService.purchaseRemoveAds(), 'Ads removed. Thank you!'); }} />}
       <AppButton title={buying === 'restore' ? 'Restoring…' : 'Restore purchases'} secondary disabled={!purchaseService.available || buying !== null}
         onPress={() => { void run('restore', () => purchaseService.restorePurchases(), 'Purchases restored.'); }} />
-      {storeMessage && <Text accessibilityLiveRegion="polite" style={styles.note}>{storeMessage}</Text>}
+      {!!storeMessage && <Text accessibilityLiveRegion="polite" style={styles.note}>{storeMessage}</Text>}
       {__DEV__ && <AppButton title="Preview ad placement (dev)" onPress={() => { void adService.maybeShowInterstitial('manual_test'); }} secondary />}
     </View>
     <Modal visible={secure !== null} transparent animationType="fade" onRequestClose={() => setSecure(null)}>
-      <View style={styles.backdrop}><View style={styles.modalCard}>
+      <KeyboardAvoidingView behavior="padding" style={styles.backdrop}><View style={styles.modalCard}>
         <Text style={styles.sectionTitle}>{secure === 'email' ? 'Email for password resets' : 'Make a new recovery code'}</Text>
         <Text style={styles.rowValue}>{secure === 'email' ? 'Used only to send reset links. Leave it empty to remove it.' : 'Your old recovery code will stop working. You will see the new one once.'}</Text>
-        {secure === 'email' && <TextInput style={styles.input} placeholder="you@example.com" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" keyboardType="email-address" autoComplete="email" value={newEmail} onChangeText={setNewEmail} />}
-        <TextInput style={styles.input} placeholder="Current password" placeholderTextColor={theme.colors.textFaint} secureTextEntry value={securePassword} onChangeText={setSecurePassword} autoComplete="password" />
-        {secureError && <Text accessibilityRole="alert" style={styles.error}>{secureError}</Text>}
+        {secure === 'email' && <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="you@example.com" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" keyboardType="email-address" autoComplete="email" value={newEmail} onChangeText={setNewEmail} />}
+        <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="Current password" placeholderTextColor={theme.colors.textFaint} secureTextEntry value={securePassword} onChangeText={setSecurePassword} autoComplete="password" />
+        {!!secureError && <Text accessibilityRole="alert" style={styles.error}>{secureError}</Text>}
         <AppButton title={secureBusy ? 'Saving…' : secure === 'email' ? 'Save email' : 'Make new code'} onPress={() => { void submitSecure(); }} disabled={!securePassword || secureBusy} />
         <AppButton title="Cancel" secondary onPress={() => setSecure(null)} />
-      </View></View>
+      </View></KeyboardAvoidingView>
     </Modal>
     <Modal visible={deleting} transparent animationType="fade" onRequestClose={() => setDeleting(false)}>
-      <View style={styles.backdrop}><View style={styles.modalCard}>
+      <KeyboardAvoidingView behavior="padding" style={styles.backdrop}><View style={styles.modalCard}>
         <Text style={styles.sectionTitle}>Delete your account?</Text>
         <Text style={styles.rowValue}>This permanently deletes your username, email, rating, game record and purchase records on our servers. Store purchases can be restored to a new account. This cannot be undone.</Text>
-        <TextInput style={styles.input} placeholder="Enter your password" placeholderTextColor={theme.colors.textFaint} secureTextEntry value={deletePassword} onChangeText={setDeletePassword} autoComplete="password" />
-        {deleteError && <Text accessibilityRole="alert" style={styles.error}>{deleteError}</Text>}
+        <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="Enter your password" placeholderTextColor={theme.colors.textFaint} secureTextEntry value={deletePassword} onChangeText={setDeletePassword} autoComplete="password" />
+        {!!deleteError && <Text accessibilityRole="alert" style={styles.error}>{deleteError}</Text>}
         <AppButton title="Delete permanently" onPress={() => { void removeAccount(); }} disabled={!deletePassword} />
         <AppButton title="Cancel" secondary onPress={() => setDeleting(false)} />
-      </View></View>
+      </View></KeyboardAvoidingView>
     </Modal>
     </ScrollView>
   </Screen>;

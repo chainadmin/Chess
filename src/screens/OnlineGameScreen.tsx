@@ -54,7 +54,7 @@ export function OnlineGameScreen({ route, navigation }: Props) {
     <Text style={styles.title}>vs {match.opponentName}</Text>
     <Text style={styles.copy}>You play {playerColor} · 3 minutes + 2 seconds per move</Text>
     <Text style={styles.status}>{status}</Text>
-    {state.error && <View style={styles.notice}><Text style={styles.warning}>{state.error}</Text><AppButton title="Retry connection" secondary onPress={() => { void onlineClient?.sync().catch(() => undefined); }} disabled={state.pending || state.connection === 'expired'} /></View>}
+    {!!state.error && <View style={styles.notice}><Text style={styles.warning}>{state.error}</Text><AppButton title="Retry connection" secondary onPress={() => { void onlineClient?.sync().catch(() => undefined); }} disabled={state.pending || state.connection === 'expired'} /></View>}
     <View style={styles.clocks}>{(['black', 'white'] as const).map(color => <View key={color} style={[styles.clock, active && clock.active === color && styles.activeClock]}><Text style={styles.eyebrow}>{color.toUpperCase()}</Text><Text style={styles.clockValue}>{formatMs(color === 'white' ? clock.whiteMs : clock.blackMs)}</Text></View>)}</View>
     <ChessBoard board={game.board} selected={selected} moves={moves} onSquarePress={tap} disabled={locked || !!promotion} orientation={playerColor} />
     <AppButton title="Resign" secondary onPress={() => setConfirmResign(true)} disabled={!active || state.pending || state.connection !== 'connected'} />

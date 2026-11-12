@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Text, TextInput, StyleSheet, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Screen } from '../components/Screen';
+import { FormScreen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
 import { authService } from '../services/auth/AuthService';
 import { PRIVACY_URL } from '../services/api/ApiClient';
@@ -20,21 +20,21 @@ export function LoginScreen({ navigation }: Props) {
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   };
-  return <Screen>
+  return <FormScreen>
     <Text style={styles.eyebrow}>WELCOME BACK</Text>
     <Text style={styles.title}>Login</Text>
     <View style={styles.form}>
       <Text style={styles.label}>Username</Text>
-      <TextInput style={styles.input} placeholder="Your username" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} autoComplete="username" textContentType="username" value={username} onChangeText={setUsername} />
+      <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="Your username" placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} autoComplete="username" textContentType="username" value={username} onChangeText={setUsername} />
       <Text style={styles.label}>Password</Text>
-      <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password" textContentType="password" value={password} onChangeText={setPassword} onSubmitEditing={login} />
+      <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} style={styles.input} placeholder="••••••••" placeholderTextColor={theme.colors.textFaint} secureTextEntry autoComplete="password" textContentType="password" value={password} onChangeText={setPassword} onSubmitEditing={login} />
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     </View>
     <Text accessibilityRole="link" style={styles.forgot} onPress={() => navigation.navigate('ForgotPassword')}>Forgot password?</Text>
     <AppButton title={busy ? 'Logging in…' : 'Login'} onPress={login} disabled={busy} />
     <AppButton title="Create an account instead" onPress={() => navigation.replace('Register')} secondary />
-    {PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
-  </Screen>;
+    {!!PRIVACY_URL && <Text accessibilityRole="link" style={styles.link} onPress={() => { void Linking.openURL(PRIVACY_URL!); }}>Privacy Policy</Text>}
+  </FormScreen>;
 }
 const styles = StyleSheet.create({
   eyebrow: { color: theme.colors.cyan, fontWeight: '900', letterSpacing: 1.6, fontSize: 12, marginTop: 12 },

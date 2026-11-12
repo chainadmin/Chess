@@ -8,10 +8,11 @@ import { canUseCosmetic, availableAppearance, cosmeticLabel, PIECE_ACCESS, RICH_
 import { NO_ENTITLEMENTS } from '../../services/purchases/billing';
 
 test('three additional complete rich sets retain all existing collection IDs', () => {
-  assert.deepEqual(Object.keys(PIECE_SETS), ['classic', 'club', 'modern', 'tournament', 'imperial', 'jade', 'crystal']);
+  // Existing saved IDs keep their order; newer collections are appended after them.
+  assert.deepEqual(Object.keys(PIECE_SETS), ['classic', 'club', 'modern', 'tournament', 'imperial', 'jade', 'crystal', 'marble', 'rosegold']);
   assert.deepEqual(RICH_PIECE_SETS, ['imperial', 'jade', 'crystal']);
   for (const set of RICH_PIECE_SETS) assert.equal(isRichPieceSet(set), true);
-  for (const set of ['classic', 'club', 'modern', 'tournament'] as const) assert.equal(isRichPieceSet(set), false);
+  for (const set of ['classic', 'club', 'modern', 'tournament', 'marble', 'rosegold'] as const) assert.equal(isRichPieceSet(set), false);
 });
 
 test('all 14 sprite frames are unique, within the atlas and skip both empty cells', () => {

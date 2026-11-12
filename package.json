@@ -10,12 +10,14 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit && tsc --noEmit -p src/game/__tests__/tsconfig.json && tsc --noEmit -p src/online/__tests__/tsconfig.json && tsc --noEmit -p server/tsconfig.json",
     "test": "node --import tsx --test src/game/__tests__/*.test.ts src/online/__tests__/*.test.ts server/__tests__/*.test.ts",
-    "check": "npm run typecheck && npm test",
+    "check": "npm run typecheck && npm run check:native && npm test",
     "online:server": "node --import tsx server/index.ts",
-    "server:dev": "node --import tsx server/main.ts"
+    "server:dev": "node --import tsx server/main.ts",
+    "check:native": "node --import tsx scripts/check-native-text.ts"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/elements": "^2.9.45",
     "@react-navigation/native": "^7.3.4",
     "@react-navigation/native-stack": "^7.17.6",
     "expo": "~57.0.32",
@@ -40,7 +42,8 @@
     "@types/pg": "^8.23.1",
     "@types/react": "19.3.0",
     "tsx": "4.23.13",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "typescript-api": "npm:typescript@^5.9.3"
   },
   "overrides": {
     "shell-quote": "^1.12.0"

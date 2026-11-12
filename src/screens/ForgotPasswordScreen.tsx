@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Screen } from '../components/Screen';
+import { FormScreen } from '../components/Screen';
 import { AppButton } from '../components/AppButton';
 import { authService, MIN_PASSWORD_LENGTH } from '../services/auth/AuthService';
 import { theme } from '../styles/theme';
@@ -38,9 +38,9 @@ export function ForgotPasswordScreen({ navigation }: Props) {
     finally { setBusy(false); }
   };
   const input = (props: React.ComponentProps<typeof TextInput>) =>
-    <TextInput placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} style={styles.input} {...props} />;
+    <TextInput underlineColorAndroid="transparent" selectionColor={theme.colors.accent} cursorColor={theme.colors.accent} placeholderTextColor={theme.colors.textFaint} autoCapitalize="none" autoCorrect={false} style={styles.input} {...props} />;
 
-  return <Screen><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+  return <FormScreen>
     <Text style={styles.eyebrow}>ACCOUNT RECOVERY</Text>
     <Text style={styles.title}>Forgot password?</Text>
     <View style={styles.tabs} accessibilityRole="tablist">
@@ -78,7 +78,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
       ? sent ? <AppButton title="Back to login" onPress={() => navigation.goBack()} /> : <AppButton title={busy ? 'Sending…' : 'Send reset link'} onPress={sendLink} disabled={busy} />
       : <AppButton title={busy ? 'Resetting…' : 'Reset password'} onPress={useCode} disabled={busy} />}
     <Text style={styles.hint}>{mode === 'email' ? 'No email on your account? Use your recovery code instead.' : "Lost your code too? Create a new account. Store purchases can be restored to it."}</Text>
-  </ScrollView></Screen>;
+  </FormScreen>;
 }
 
 const styles = StyleSheet.create({

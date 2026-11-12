@@ -54,7 +54,7 @@ CLIMB THE LEADERBOARD
 Every online game is rated. Win to raise your rating and move up the leaderboard.
 
 MAKE IT YOURS
-Earn new boards and piece sets as you level up: Walnut, Forest, Sandstone and Slate boards; Classic, Carved Wood, Imperial Ivory, Jade Dynasty and Frost Crystal pieces. Premium Forged Metal and Royal Lacquer sets are available too.
+Earn new boards and piece sets as you level up, all the way to high-end Carrara Marble and Mahogany & Gold boards and Carrara Marble and Rose Gold pieces. Start with Walnut and Forest boards and Classic and Imperial Ivory pieces; unlock Sandstone, Slate, Carved Wood, Jade Dynasty and Frost Crystal along the way. Premium Forged Metal and Royal Lacquer sets are available too.
 
 FREE TO PLAY
 ShiftChess is free with ads between games. Optional purchases remove ads or add premium piece sets. Purchases are cosmetic only: no pay-to-win, ever.

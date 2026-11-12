@@ -102,7 +102,7 @@ export function MultiplayerScreen({ navigation }: Props) {
     </View>
 
     <Text accessibilityLiveRegion="polite" style={styles.status}>{status}</Text>
-    {state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
+    {!!state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
 
     {needsAccount && onlineClient ? <>
       <AppButton title="Create free account" onPress={() => navigation.navigate('Register')} />
