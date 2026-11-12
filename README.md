@@ -123,6 +123,6 @@ The server owns legal moves, clocks and results; the earlier safeguards (request
 ## Time Controls
 
 - Online Blitz 3+2: 3 minutes per player, +2 seconds after each accepted move. The only online queue; rated.
-- Local Blitz 3+0: 3 minutes per player, no increment.
+- Offline games (vs computer, pass and play): untimed.
 - Legacy/demo Bullet 1+1: 1 minute per player, +1 second after each move.
 - Legacy/demo Rapid 10+0: 10 minutes per player, no increment.
