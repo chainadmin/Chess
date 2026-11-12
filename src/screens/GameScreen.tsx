@@ -11,9 +11,9 @@ import { AppButton } from '../components/AppButton';
 import { ROWS } from '../game/board';
 import { DRAW_STATUSES, GameState, GameStatus } from '../game/gameState';
 import { isInCheck, legalMoves } from '../game/legalMoves';
-import { Move, PIECE_NAMES, PIECE_VALUE, PROMOTION_CHOICES, PieceType } from '../game/pieces';
+import { Color, Move, opponent, PIECE_NAMES, PIECE_VALUE, PROMOTION_CHOICES, PieceType } from '../game/pieces';
 import { formatMs, TIME_CONTROLS } from '../game/timers';
-import { chooseComputerMove } from '../game/computerPlayer';
+import { chooseComputerMove, ComputerDifficulty } from '../game/computerPlayer';
 import { canPlayerMove, confirmResignRequest, createResignRequest, createSession, GameSession, MoveActor, OpponentTurnScheduler, playSessionMove, ResignRequest, tickSession } from '../game/opponentFlow';
 import { adService } from '../services/ads/AdService';
 import { multiplayerService } from '../services/multiplayer/MultiplayerService';
@@ -25,6 +25,9 @@ import { progressionStore } from '../progression/useProgression';
 import type { AwardResult } from '../progression/ProgressionStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Game'>;
+
+/** Wall-clock cap on each computer move, so slower phones never stall. */
+const THINK_MS: Record<ComputerDifficulty, number> = { easy: 400, medium: 1200, hard: 2500 };
 
 const DRAW_REASON: Partial<Record<GameStatus, string>> = {
   stalemate: 'Stalemate', draw_fifty: '50-move rule', draw_repetition: 'Threefold repetition', draw_material: 'Insufficient material',
@@ -50,11 +53,14 @@ export function GameScreen({ route, navigation }: Props) {
   const { pieces: pieceSet } = useAppearance();
   const mode = route.params.mode;
   const match = route.params.mode === 'multiplayer' ? route.params.match : undefined;
-  const computerDifficulty = route.params.mode === 'local' ? route.params.computerDifficulty : undefined;
-  const playerColor = match?.playerColor ?? (computerDifficulty ? 'white' : undefined);
-  const timeControl = match?.timeControl ?? TIME_CONTROLS.blitz_3_0;
-  // Offline games (vs computer, pass and play) are untimed: no countdown, no timeouts.
-  const untimed = mode === 'local';
+  const local = route.params.mode === 'local' ? route.params : undefined;
+  const computerDifficulty = local?.computerDifficulty;
+  const playerColor: Color | undefined = match?.playerColor ?? (computerDifficulty ? local?.playerColor ?? 'white' : undefined);
+  const computerColor: Color | undefined = computerDifficulty && playerColor ? opponent(playerColor) : undefined;
+  // Offline games use the clock picked in setup; no clock picked means untimed.
+  const chosenClock = match?.timeControl ?? (local?.timeControl ? TIME_CONTROLS[local.timeControl] : undefined);
+  const untimed = !chosenClock;
+  const timeControl = chosenClock ?? TIME_CONTROLS.blitz_3_0;
   const [session, setSession] = useState<GameSession>(() => createSession(timeControl));
   const sessionRef = useRef(session);
   const { game: state, clock } = session;
@@ -98,12 +104,17 @@ export function GameScreen({ route, navigation }: Props) {
       ? multiplayerService.onOpponentMove((move, expectedState) => play(move, 'opponent', expectedState))
       : undefined;
     if (match) multiplayerService.startMatch(match, sessionRef.current.game);
+    // Charge real elapsed time, so a slow tick (e.g. while the computer thinks) is still counted.
+    let lastTick = Date.now();
     const timer = untimed ? undefined : setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - lastTick;
+      lastTick = now;
       const before = sessionRef.current;
       if (!focusedRef.current) return;
-      const next = tickSession(before, 1000);
+      const next = tickSession(before, elapsed);
       if (next !== before) commit(next);
-    }, 1000);
+    }, 250);
     return () => {
       focusedRef.current = false;
       gameGeneration.current++;
@@ -119,22 +130,22 @@ export function GameScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!isFocused) return;
     if (mode === 'multiplayer') multiplayerService.updateGame(state);
-    if (!computerDifficulty) return;
+    if (!computerDifficulty || !computerColor) return;
     const scheduler = computer.current;
     scheduler.scheduleTurn({
-      state, color: 'black', delayMs: 450,
-      chooseMove: position => chooseComputerMove(position, computerDifficulty),
+      state, color: computerColor, delayMs: 450,
+      chooseMove: position => chooseComputerMove(position, computerDifficulty, { timeLimitMs: THINK_MS[computerDifficulty] }),
       isCurrent: () => focusedRef.current && sessionRef.current.game === state,
       onMove: (move, expectedState) => play(move, 'opponent', expectedState),
     });
     return () => scheduler.cancel();
-  }, [computerDifficulty, isFocused, mode, play, state]);
+  }, [computerColor, computerDifficulty, isFocused, mode, play, state]);
 
   async function savePracticeResult() {
     if (mode !== 'local' || state.status === 'active') return;
     const number = gameNumber.current;
     setSavingPractice(true);
-    const result = await progressionStore.record({ kind: 'game', id: `${route.key}:${number}`, mode: computerDifficulty ? 'computer' : 'local', status: state.status, plyCount: state.history.length, won: state.winner === 'white' });
+    const result = await progressionStore.record({ kind: 'game', id: `${route.key}:${number}`, mode: computerDifficulty ? 'computer' : 'local', status: state.status, plyCount: state.history.length, won: state.winner === (playerColor ?? 'white') });
     if (gameNumber.current === number) { setPracticeAward(result); setSavingPractice(false); }
   }
 
@@ -229,11 +240,14 @@ export function GameScreen({ route, navigation }: Props) {
   const isDraw = DRAW_STATUSES.includes(state.status);
   const title = computerDifficulty ? `Computer ${computerDifficulty[0].toUpperCase()}${computerDifficulty.slice(1)}` : mode === 'local' ? 'Local Game' : `vs ${match?.opponentName} (${match?.opponentRating})`;
   const thinking = state.status === 'active' && inputLocked;
+  const clockLabel = untimed ? 'UNTIMED' : timeControl.label.replace(/^\S+ /, '');
+  // Opponent's clock on the left, yours on the right.
+  const clockOrder: Color[] = playerColor === 'black' ? ['white', 'black'] : ['black', 'white'];
 
   return <Screen style={styles.screen}>
     <ScrollView contentContainerStyle={styles.content}>
     <View style={styles.header}>
-      <Text style={styles.eyebrow}>{computerDifficulty ? 'YOU PLAY WHITE' : mode === 'local' ? 'PASS AND PLAY' : `MOCK MATCH · YOU PLAY ${playerColor?.toUpperCase()}`}</Text>
+      <Text style={styles.eyebrow}>{computerDifficulty ? `YOU PLAY ${playerColor?.toUpperCase()} · ${clockLabel}` : mode === 'local' ? `PASS AND PLAY · ${clockLabel}` : `MOCK MATCH · YOU PLAY ${playerColor?.toUpperCase()}`}</Text>
       <Text style={styles.title}>{title}</Text>
       <View style={[styles.statusPill, state.status === 'active' ? (inCheck ? styles.statusCheck : styles.statusActive) : (isDraw ? styles.statusDraw : styles.statusOver)]}>
         <Text style={styles.statusText}>{thinking ? computerDifficulty ? 'Computer thinking…' : 'Mock opponent thinking…' : statusMessage(state)}</Text>
@@ -244,18 +258,18 @@ export function GameScreen({ route, navigation }: Props) {
       {ratingChange && <Text style={ratingChange.change >= 0 ? styles.ratingGain : styles.ratingLoss}>Demo rating {ratingChange.before} → {ratingChange.after} ({ratingChange.change >= 0 ? '+' : ''}{ratingChange.change})</Text>}
     </View>
 
-    {untimed ? <Text style={styles.untimed}>Untimed · take your time</Text> : <View style={styles.clocks}>
-      <View style={[styles.clockCard, clock.active === 'black' && state.status === 'active' && styles.clockActive]}>
-        <Text style={styles.clockLabel}>BLACK</Text>
-        <Text style={[styles.clockValue, clock.blackMs < 15000 && styles.clockLow]}>{formatMs(clock.blackMs)}</Text>
-      </View>
-      <View style={[styles.clockCard, clock.active === 'white' && state.status === 'active' && styles.clockActive]}>
-        <Text style={styles.clockLabel}>WHITE</Text>
-        <Text style={[styles.clockValue, clock.whiteMs < 15000 && styles.clockLow]}>{formatMs(clock.whiteMs)}</Text>
-      </View>
+    {!untimed && <View style={styles.clocks}>
+      {clockOrder.map(side => {
+        const ms = side === 'white' ? clock.whiteMs : clock.blackMs;
+        const who = computerColor === side ? ' · COMPUTER' : playerColor === side && computerColor ? ' · YOU' : '';
+        return <View key={side} style={[styles.clockCard, clock.active === side && state.status === 'active' && styles.clockActive]}>
+          <Text style={styles.clockLabel}>{side.toUpperCase()}{who}</Text>
+          <Text style={[styles.clockValue, ms < 15000 && styles.clockLow]}>{formatMs(ms)}</Text>
+        </View>;
+      })}
     </View>}
 
-    <ChessBoard edgeToEdge board={state.board} selected={state.selected ?? null} moves={moves} onSquarePress={tap} disabled={inputLocked || !!pendingPromotion || state.status !== 'active'} />
+    <ChessBoard edgeToEdge orientation={playerColor ?? 'white'} board={state.board} selected={state.selected ?? null} moves={moves} onSquarePress={tap} disabled={inputLocked || !!pendingPromotion || state.status !== 'active'} />
 
     <View style={styles.capturedRow}>
       <View style={styles.capturedGroup}>
@@ -270,7 +284,9 @@ export function GameScreen({ route, navigation }: Props) {
 
     <View style={styles.actions}>
       <View style={styles.action}><AppButton title="Resign" onPress={doResign} secondary disabled={state.status !== 'active'} /></View>
-      {mode === 'local' && <View style={styles.action}><AppButton title="New Game" onPress={reset} secondary /></View>}
+      {mode === 'local' && <View style={styles.action}><AppButton title="Rematch" onPress={reset} secondary /></View>}
+      {mode === 'local' && <View style={styles.action}><AppButton title="Change setup" secondary
+        onPress={() => navigation.replace('GameSetup', computerDifficulty ? { opponent: 'computer', computerDifficulty } : { opponent: 'human' })} /></View>}
     </View>
 
     <Text style={styles.subhead}>Move History</Text>
@@ -332,7 +348,6 @@ const styles = StyleSheet.create({
   capturedLabel: { color: theme.colors.textFaint, fontSize: 10, fontWeight: '800', marginBottom: 2 },
   capturedIcons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   edge: { color: theme.colors.success, fontWeight: '900', fontSize: 13 },
-  untimed: { color: theme.colors.textDim, textAlign: 'center', fontSize: 13, fontWeight: '700', marginBottom: 10 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 10 },
   action: { flex: 1 },
   subhead: { color: theme.colors.text, fontWeight: '900', fontSize: 16, marginTop: 10, marginBottom: 4 },

@@ -62,7 +62,7 @@ export function RewardsScreen({ navigation }: Props) {
       {[['Finish a game vs the computer or pass & play (6+ moves)', '+25'], ['Beat the computer', '+25'], ["Solve the daily puzzle (once a day)", '+30']].map(([what, xp]) =>
         <View key={what} style={styles.earnRow}><Text style={styles.earnText}>{what}</Text><Text style={styles.earnXp}>{xp} XP</Text></View>)}
       <View style={styles.earnButtons}>
-        <View style={{ flex: 1 }}><AppButton title="Play computer" onPress={() => navigation.navigate('Game', { mode: 'local', computerDifficulty: 'medium' })} /></View>
+        <View style={{ flex: 1 }}><AppButton title="Play computer" onPress={() => navigation.navigate('GameSetup', { opponent: 'computer' })} /></View>
         <View style={{ flex: 1 }}><AppButton title="Daily puzzle" secondary onPress={() => navigation.navigate('DailyPuzzle')} /></View>
       </View>
     </View>

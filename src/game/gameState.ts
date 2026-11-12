@@ -1,4 +1,4 @@
-import { Board, COLS, ROWS, algebraic, createInitialBoard } from './board';
+import { Board, COLS, KING_START_COL, ROWS, algebraic, createInitialBoard } from './board';
 import { Color, Move, opponent, Piece, Square } from './pieces';
 import { allLegalMoves, isInCheck, legalMoves } from './legalMoves';
 import { applyMove } from './moveValidation';
@@ -31,7 +31,7 @@ export function positionKey(board: Board, turn: Color, enPassant: Square | null)
   const castling: string[] = [];
   for (const color of ['white', 'black'] as const) {
     const row = color === 'white' ? ROWS - 1 : 0;
-    const king = board[row][5];
+    const king = board[row][KING_START_COL];
     if (king?.type !== 'K' || king.color !== color || king.moved) continue;
     for (const col of [0, COLS - 1]) {
       const rook = board[row][col];

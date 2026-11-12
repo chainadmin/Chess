@@ -109,12 +109,12 @@ export function HomeScreen({ navigation }: Props) {
     <Text style={styles.section}>Play the computer</Text>
     <View style={styles.row}>
       {([['easy', 'Easy', 'P'], ['medium', 'Medium', 'N'], ['hard', 'Hard', 'Q']] as const).map(([level, label, piece]) =>
-        <Tile key={level} label={label} detail="You play white" onPress={() => navigation.navigate('Game', { mode: 'local', computerDifficulty: level })}>
+        <Tile key={level} label={label} detail="White or black · any clock" onPress={() => navigation.navigate('GameSetup', { opponent: 'computer', computerDifficulty: level })}>
           <PieceView type={piece} color="black" set={pieces} size={40} />
         </Tile>)}
     </View>
     <View style={styles.row}>
-      <Tile label="Pass & Play" detail="Two players, one phone" onPress={() => navigation.navigate('Game', { mode: 'local' })}>
+      <Tile label="Pass & Play" detail="Two players, one phone" onPress={() => navigation.navigate('GameSetup', { opponent: 'human' })}>
         <View style={styles.pair}><PieceView type="K" color="white" set={pieces} size={34} /><PieceView type="K" color="black" set={pieces} size={34} /></View>
       </Tile>
       {authService.accountsAvailable && <Tile label="Leaderboard" detail="Top rated players" onPress={() => navigation.navigate('Leaderboard')}>

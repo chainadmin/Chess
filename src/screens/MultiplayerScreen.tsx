@@ -115,7 +115,7 @@ export function MultiplayerScreen({ navigation }: Props) {
     <View style={styles.localRow}>
       <Text style={styles.localLabel}>Rather practise first?</Text>
       <View style={styles.localButtons}>
-        <Text accessibilityRole="link" style={styles.localLink} onPress={() => navigation.navigate('Game', { mode: 'local', computerDifficulty: 'medium' })}>Play the computer</Text>
+        <Text accessibilityRole="link" style={styles.localLink} onPress={() => navigation.navigate('GameSetup', { opponent: 'computer' })}>Play the computer</Text>
         <Text style={styles.dot}>·</Text>
         <Text accessibilityRole="link" style={styles.localLink} onPress={() => navigation.navigate('DailyPuzzle')}>Daily puzzle</Text>
       </View>
