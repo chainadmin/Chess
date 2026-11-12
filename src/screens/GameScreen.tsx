@@ -53,6 +53,8 @@ export function GameScreen({ route, navigation }: Props) {
   const computerDifficulty = route.params.mode === 'local' ? route.params.computerDifficulty : undefined;
   const playerColor = match?.playerColor ?? (computerDifficulty ? 'white' : undefined);
   const timeControl = match?.timeControl ?? TIME_CONTROLS.blitz_3_0;
+  // Offline games (vs computer, pass and play) are untimed: no countdown, no timeouts.
+  const untimed = mode === 'local';
   const [session, setSession] = useState<GameSession>(() => createSession(timeControl));
   const sessionRef = useRef(session);
   const { game: state, clock } = session;
@@ -96,7 +98,7 @@ export function GameScreen({ route, navigation }: Props) {
       ? multiplayerService.onOpponentMove((move, expectedState) => play(move, 'opponent', expectedState))
       : undefined;
     if (match) multiplayerService.startMatch(match, sessionRef.current.game);
-    const timer = setInterval(() => {
+    const timer = untimed ? undefined : setInterval(() => {
       const before = sessionRef.current;
       if (!focusedRef.current) return;
       const next = tickSession(before, 1000);
@@ -105,14 +107,14 @@ export function GameScreen({ route, navigation }: Props) {
     return () => {
       focusedRef.current = false;
       gameGeneration.current++;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
       computer.current.cancel();
       unsubscribe?.();
       if (mode === 'multiplayer') void multiplayerService.disconnect();
       setPendingPromotion(null);
       setResignRequest(null);
     };
-  }, [commit, match, mode, play]));
+  }, [commit, match, mode, play, untimed]));
 
   useEffect(() => {
     if (!isFocused) return;
@@ -242,7 +244,7 @@ export function GameScreen({ route, navigation }: Props) {
       {ratingChange && <Text style={ratingChange.change >= 0 ? styles.ratingGain : styles.ratingLoss}>Demo rating {ratingChange.before} → {ratingChange.after} ({ratingChange.change >= 0 ? '+' : ''}{ratingChange.change})</Text>}
     </View>
 
-    <View style={styles.clocks}>
+    {untimed ? <Text style={styles.untimed}>Untimed · take your time</Text> : <View style={styles.clocks}>
       <View style={[styles.clockCard, clock.active === 'black' && state.status === 'active' && styles.clockActive]}>
         <Text style={styles.clockLabel}>BLACK</Text>
         <Text style={[styles.clockValue, clock.blackMs < 15000 && styles.clockLow]}>{formatMs(clock.blackMs)}</Text>
@@ -251,7 +253,7 @@ export function GameScreen({ route, navigation }: Props) {
         <Text style={styles.clockLabel}>WHITE</Text>
         <Text style={[styles.clockValue, clock.whiteMs < 15000 && styles.clockLow]}>{formatMs(clock.whiteMs)}</Text>
       </View>
-    </View>
+    </View>}
 
     <ChessBoard edgeToEdge board={state.board} selected={state.selected ?? null} moves={moves} onSquarePress={tap} disabled={inputLocked || !!pendingPromotion || state.status !== 'active'} />
 
@@ -330,6 +332,7 @@ const styles = StyleSheet.create({
   capturedLabel: { color: theme.colors.textFaint, fontSize: 10, fontWeight: '800', marginBottom: 2 },
   capturedIcons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   edge: { color: theme.colors.success, fontWeight: '900', fontSize: 13 },
+  untimed: { color: theme.colors.textDim, textAlign: 'center', fontSize: 13, fontWeight: '700', marginBottom: 10 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 10 },
   action: { flex: 1 },
   subhead: { color: theme.colors.text, fontWeight: '900', fontSize: 16, marginTop: 10, marginBottom: 4 },
