@@ -3,7 +3,9 @@ export const COLS = 10;
 export const ROWS = 8;
 export const FILES = 'abcdefghij'.split('');
 export type Board = (Piece | null)[][];
+// Queen to the left of the king (from White's side), as on a regular board.
 export const BACK_RANK: Piece['type'][] = ['R', 'N', 'S', 'B', 'Q', 'K', 'B', 'S', 'N', 'R'];
+export const KING_START_COL = BACK_RANK.indexOf('K');
 export function createInitialBoard(): Board {
   const board: Board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
   board[0] = BACK_RANK.map(type => ({ type, color: 'black' }));

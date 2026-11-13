@@ -1,11 +1,13 @@
 import { Color } from './pieces';
-export type TimeControlId = 'blitz_3_2' | 'blitz_3_0' | 'bullet_1_1' | 'rapid_10_0';
+export type TimeControlId = 'blitz_3_2' | 'blitz_3_0' | 'blitz_5_3' | 'bullet_1_1' | 'rapid_10_0' | 'rapid_10_5';
 export type TimeControl = { id: TimeControlId; label: string; initialMs: number; incrementMs: number };
 export const TIME_CONTROLS: Record<TimeControlId, TimeControl> = {
   blitz_3_2: { id: 'blitz_3_2', label: 'Blitz 3+2', initialMs: 180000, incrementMs: 2000 },
   blitz_3_0: { id: 'blitz_3_0', label: 'Blitz 3+0', initialMs: 180000, incrementMs: 0 },
   bullet_1_1: { id: 'bullet_1_1', label: 'Bullet 1+1', initialMs: 60000, incrementMs: 1000 },
   rapid_10_0: { id: 'rapid_10_0', label: 'Rapid 10+0', initialMs: 600000, incrementMs: 0 },
+  blitz_5_3: { id: 'blitz_5_3', label: 'Blitz 5+3', initialMs: 300000, incrementMs: 3000 },
+  rapid_10_5: { id: 'rapid_10_5', label: 'Rapid 10+5', initialMs: 600000, incrementMs: 5000 },
 };
 export type ClockState = { whiteMs: number; blackMs: number; active: Color; incrementMs: number; running: boolean; timedOut?: Color };
 export const createClock = (tc: TimeControl): ClockState => ({ whiteMs: tc.initialMs, blackMs: tc.initialMs, active: 'white', incrementMs: tc.incrementMs, running: true });

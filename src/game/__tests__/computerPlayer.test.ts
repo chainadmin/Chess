@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Board, COLS, ROWS } from '../board';
-import { ComputerDifficulty, chooseComputerMove } from '../computerPlayer';
+import { ComputerDifficulty, chooseComputerMove, searchTargets } from '../computerPlayer';
 import { GameState, createGameState, makeMove, resign } from '../gameState';
-import { allLegalMoves, isInCheck } from '../legalMoves';
+import { allLegalMoves, isInCheck, pseudoMoves } from '../legalMoves';
 import { Piece, PROMOTION_CHOICES } from '../pieces';
 
 const difficulties: ComputerDifficulty[] = ['easy', 'medium', 'hard'];
@@ -97,18 +97,58 @@ test('every level returns an explicit legal promotion when promotion is the only
   }
 });
 
-test('Hard considers the opponent reply and declines a poisoned pawn that Medium captures', () => {
+test('Medium and Hard consider the reply and decline a poisoned pawn', () => {
   const state = position([
     [7, 9, { type: 'K', color: 'white' }], [0, 0, { type: 'K', color: 'black' }],
     [4, 3, { type: 'Q', color: 'white' }], [4, 6, { type: 'P', color: 'black' }],
     [0, 6, { type: 'R', color: 'black' }],
   ]);
-  const medium = chooseComputerMove(state, 'medium');
-  const hard = chooseComputerMove(state, 'hard');
-  assert.ok(medium && hard);
-  assert.deepEqual(medium.to, { row: 4, col: 6 });
-  assert.notDeepEqual(hard.to, { row: 4, col: 6 });
-  assert.notEqual(makeMove(state, hard), state);
+  for (const difficulty of ['medium', 'hard'] as const) {
+    const move = chooseComputerMove(state, difficulty);
+    assert.ok(move, difficulty);
+    assert.notDeepEqual(move.to, { row: 4, col: 6 }, difficulty);
+  }
+});
+
+test('Medium and Hard take a free piece and do not leave their queen hanging', () => {
+  const free = position([
+    [7, 9, { type: 'K', color: 'white' }], [0, 0, { type: 'K', color: 'black' }],
+    [6, 2, { type: 'N', color: 'white' }], [4, 3, { type: 'R', color: 'black' }],
+  ]);
+  const hanging = position([
+    [7, 9, { type: 'K', color: 'white' }], [0, 0, { type: 'K', color: 'black' }],
+    [4, 4, { type: 'Q', color: 'white' }], [2, 4, { type: 'R', color: 'black' }],
+    [6, 0, { type: 'P', color: 'white' }],
+  ]);
+  for (const difficulty of ['medium', 'hard'] as const) {
+    assert.deepEqual(chooseComputerMove(free, difficulty)?.to, { row: 4, col: 3 }, difficulty);
+    const move = chooseComputerMove(hanging, difficulty)!;
+    const next = makeMove(hanging, move);
+    // After the move, Black cannot win the queen for free.
+    const reply = chooseComputerMove(next, 'hard');
+    const after = reply ? makeMove(next, reply) : next;
+    assert.ok(after.board.flat().some(p => p?.type === 'Q' && p.color === 'white')
+      || after.captured.some(p => p.type === 'R'), difficulty);
+  }
+});
+
+test('the search move generator matches the game rules on positions from real play', () => {
+  let state = createGameState();
+  for (let ply = 0; ply < 40 && state.status === 'active'; ply++) {
+    for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) {
+      const key = (s: { row: number; col: number }) => `${s.row},${s.col}`;
+      const expected = pseudoMoves(state.board, row, col, { enPassantTarget: state.enPassant }).map(key).sort();
+      assert.deepEqual(searchTargets(state.board, row, col, state.enPassant).map(key).sort(), expected, `ply ${ply} ${row},${col}`);
+    }
+    state = makeMove(state, chooseComputerMove(state, ply % 2 ? 'easy' : 'medium')!);
+  }
+});
+
+test('a time limit still returns a legal move', () => {
+  const state = createGameState();
+  const move = chooseComputerMove(state, 'hard', { timeLimitMs: 1 });
+  assert.ok(move);
+  assert.notEqual(makeMove(state, move), state);
 });
 
 test('search respects castling rights and king safety on an open castling position', () => {

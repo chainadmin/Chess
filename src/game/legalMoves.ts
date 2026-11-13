@@ -1,4 +1,4 @@
-import { Board, COLS, ROWS, inBounds } from './board';
+import { Board, COLS, KING_START_COL, ROWS, inBounds } from './board';
 import { Color, Move, PROMOTION_CHOICES, Square, opponent } from './pieces';
 import { shifterMoves, BISHOP_DIRS, ORTHO_DIRS } from './shifter';
 import { applyRawMove } from './applyRaw';
@@ -82,7 +82,7 @@ export function squareAttacked(board: Board, square: Square, byColor: Color): bo
 export function isInCheck(board: Board, color: Color) { const king = findKing(board,color); if (!king) return true; return squareAttacked(board,king,opponent(color)); }
 function castlingMoves(board: Board, row: number, col: number, color: Color): Square[] {
   const king = board[row][col];
-  if (!king || king.type !== 'K' || king.moved || row !== (color === 'white' ? ROWS - 1 : 0) || col !== 5) return [];
+  if (!king || king.type !== 'K' || king.moved || row !== (color === 'white' ? ROWS - 1 : 0) || col !== KING_START_COL) return [];
   if (isInCheck(board,color)) return [];
   const results: Square[] = [];
   for (const kingside of [true,false]) {
