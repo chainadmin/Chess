@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -14,6 +14,7 @@ import { DRAW_STATUSES } from '../game/gameState';
 import { Move, PIECE_NAMES, PROMOTION_CHOICES, PieceType, Square } from '../game/pieces';
 import { formatMs } from '../game/timers';
 import { theme } from '../styles/theme';
+import { adService } from '../services/ads/AdService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OnlineGame'>;
 
@@ -30,6 +31,17 @@ export function OnlineGameScreen({ route, navigation }: Props) {
   useEffect(() => { const timer = setInterval(() => setNow(performance.now()), 200); return () => clearInterval(timer); }, []);
   useEffect(() => { void onlineClient?.sync().catch(() => undefined); }, []);
   useEffect(() => { setSelected(null); setPromotion(null); }, [match?.matchId, match?.revision]);
+  // Count a finished online game toward the between-games ad, once, only if we watched it end.
+  const sawActive = useRef<string | null>(null);
+  const counted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!match) return;
+    if (match.game.status === 'active') sawActive.current = match.matchId;
+    else if (sawActive.current === match.matchId && counted.current !== match.matchId) {
+      counted.current = match.matchId;
+      void adService.recordCompletedGame();
+    }
+  }, [match?.matchId, match?.game.status]);
   const moves = useMemo(() => match && selected ? legalMoves(match.game.board, selected.row, selected.col, { enPassantTarget: match.game.enPassant }) : [], [match, selected]);
   if (!match) return <Screen><Text style={styles.title}>Reconnecting to your game</Text><Text style={styles.copy}>{state.error ?? 'Open Online 3+2 to find your current match.'}</Text><AppButton title="Back to online lobby" onPress={() => navigation.replace('Multiplayer')} /></Screen>;
   const { game, playerColor } = match;
