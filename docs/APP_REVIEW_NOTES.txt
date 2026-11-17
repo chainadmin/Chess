@@ -1,0 +1,33 @@
+1. SCREEN RECORDING
+Recorded on a physical iPhone running the latest iOS, starting at app launch. Attached in App Review Information > Attachment [or link: PASTE LINK]. It shows: playing the computer; creating an account; logging out and in; an online game; buying an item in the Shop and Restore purchases; Settings > Delete account.
+
+2. PURPOSE AND AUDIENCE
+ShiftChess is a chess game on a 10x8 board with one new piece, the Lancer (moves like a bishop, or one square straight). It is for anyone who enjoys chess or board games, ages 4+, beginner to expert. It gives chess players something fresh: a familiar game with new tactics, playable offline against a computer or online against real players.
+
+3. HOW TO USE IT
+No login is needed for offline play. On the first screen tap "Play now". From Home:
+- Easy / Medium / Hard: choose level, White or Black, and a clock (or Untimed), then Start game.
+- Pass & Play: two players on one phone.
+- Daily puzzle: one puzzle per day.
+- Levels & rewards / Boards & pieces: earned cosmetic boards and piece sets.
+Online play needs an account. Demo accounts:
+  Username: [REVIEWER1]  Password: [PASSWORD1]
+  Username: [REVIEWER2]  Password: [PASSWORD2]
+Online pairs two real players: sign in with each account on a different device, tap Play online on both, and they are matched for a rated 3+2 game. Leaderboard shows ratings.
+Account creation: first screen > Create free account (username + password; email optional, only for password resets).
+Account deletion: Settings > Account removal > Delete account, confirm with the password. Deletes the account and its data on our server immediately. Also available at https://shiftchess.chain-developments.com/account-deletion
+Paid content: Shop (Home > Shop, or Settings > Shop) sells four non-consumable items: Remove Ads, Forged Metal Pieces, Royal Lacquer Pieces, Everything Pack. All are cosmetic or ad removal; nothing affects gameplay. Settings > Restore purchases restores them.
+User content: the only user-entered content other players see is the username (shown to an opponent and on the leaderboard). There is no chat, messaging, photos or other shared content. Our terms forbid offensive usernames, and users can report a username to us through Settings > Help & support; we remove usernames that break the rules.
+
+4. EXTERNAL SERVICES
+- Our own server (hosted on Railway, PostgreSQL database): accounts, online matchmaking, ratings, leaderboard, purchase records.
+- Apple In-App Purchase (StoreKit): payments. We never handle card details.
+- Google AdMob: interstitial ads between games, with Google's consent form where required and Apple's App Tracking Transparency prompt. Ads are non-personalized unless the user allows tracking.
+- Postmark: sends password-reset emails, only to users who added an email.
+No AI services, third-party login or data providers are used.
+
+5. REGIONS
+The app works the same in all regions. The only difference: in regions with privacy laws (EEA, UK, some US states) Google's ad consent form is shown before ads.
+
+6. REGULATED INDUSTRY / THIRD-PARTY MATERIAL
+Not applicable. ShiftChess is not in a regulated industry and contains no gambling or real-money prizes. All artwork, piece designs and code are owned by Chain Software Group; chess rules are public domain.

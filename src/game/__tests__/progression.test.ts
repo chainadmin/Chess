@@ -138,7 +138,7 @@ test('optional development placement cadence serializes rapid completions', asyn
   const { storage } = memory(); const ads = new PreviewAdService(storage, async () => NO_ENTITLEMENTS, true); let count = 0;
   ads.subscribe(() => { count++; });
   const results = await Promise.all(Array.from({ length: 6 }, () => ads.recordCompletedGame()));
-  assert.deepEqual(results, [false, false, true, false, false, true]); assert.equal(count, 2);
+  assert.deepEqual(results, [false, true, false, true, false, true]); assert.equal(count, 3);
 });
 
 test('ad storage failure and missing listeners never block gameplay', async () => {
