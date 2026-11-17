@@ -2,6 +2,8 @@ import type { PreferenceStorage } from '../../appearance/AppearanceStore';
 import { STORAGE_KEYS } from '../../storage/keys';
 import type { Entitlements } from '../purchases/billing';
 export type AdReason = 'game_complete' | 'manual_test';
+/** An ad may play after every Nth finished game, never during play. */
+export const GAMES_BETWEEN_ADS = 2;
 export interface AdService {
   initAds(): Promise<void>;
   maybeShowInterstitial(reason: AdReason): Promise<boolean>;
@@ -32,9 +34,9 @@ export class PreviewAdService implements AdService {
     const operation = this.queue.then(async () => {
       try {
         const stored = Number(await this.storage.getItem(STORAGE_KEYS.completedGameCount));
-        const current = (Number.isSafeInteger(stored) && stored >= 0 ? stored % 3 : 0) + 1;
-        await this.storage.setItem(STORAGE_KEYS.completedGameCount, String(current % 3));
-        return current === 3 ? this.maybeShowInterstitial('game_complete') : false;
+        const current = (Number.isSafeInteger(stored) && stored >= 0 ? stored % GAMES_BETWEEN_ADS : 0) + 1;
+        await this.storage.setItem(STORAGE_KEYS.completedGameCount, String(current % GAMES_BETWEEN_ADS));
+        return current === GAMES_BETWEEN_ADS ? this.maybeShowInterstitial('game_complete') : false;
       } catch { return false; } // An unavailable ad/storage service must never block play.
     });
     this.queue = operation.catch(() => undefined);

@@ -1,7 +1,7 @@
 import type { PreferenceStorage } from '../../appearance/AppearanceStore';
 import { STORAGE_KEYS } from '../../storage/keys';
 import type { Entitlements } from '../purchases/billing';
-import type { AdReason, AdService } from './PreviewAdService';
+import { GAMES_BETWEEN_ADS, type AdReason, type AdService } from './PreviewAdService';
 
 /** The parts of react-native-google-mobile-ads this service uses (kept local so tests need no native types). */
 type Interstitial = {
@@ -17,7 +17,7 @@ export type Gma = {
   InterstitialAd: { createForAdRequest(unitId: string, request: { requestNonPersonalizedAdsOnly: boolean }): Interstitial };
 };
 
-export const GAMES_BETWEEN_ADS = 3;
+export { GAMES_BETWEEN_ADS };
 const RETRY_LOAD_MS = 30_000;
 const GAME_END_DELAY_MS = 900;
 

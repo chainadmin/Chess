@@ -20,7 +20,7 @@ Use a fresh local browser profile or test device, without actual store purchases
 5. Finish a pass-and-play game after six plies: +25 XP once. Example legal moves: a2–a3, a7–a6, b2–b3, b7–b6, c2–c3, c7–c6, then resign. An immediate resignation before six plies should award nothing. Reset should create a distinct result, not replay the previous reward.
 6. Finish a computer game: 25 XP after six plies, plus 25 on a player win. Active/abandoned games must not award XP. Online and legacy mock multiplayer results must not award practice XP.
 7. Reach level 2 at 100 XP and level 3 at 200 XP. Forest/Carved Wood should become selectable, persist, and render on boards, puzzles and piece previews. Premium collections remain locked at maximum level.
-8. Preview an ad from Settings, close it, reopen, and dismiss with Android Back where applicable. No reward or charge should appear. In a normal build there should be no automatic placeholder. With `EXPO_PUBLIC_AD_PREVIEW=true`, a marked preview should appear only between games, every third completed local game.
+8. Preview an ad from Settings, close it, reopen, and dismiss with Android Back where applicable. No reward or charge should appear. In a normal build there should be no automatic placeholder. With `EXPO_PUBLIC_AD_PREVIEW=true`, a marked preview should appear only between games, every second completed game.
 9. Simulate unavailable storage: no XP/unlock before a successful save, a useful error, and a working retry. A failed read must not replace the saved progress. On a solved puzzle, reentry must recover an interrupted XP save.
 10. Check 320/390 px mobile and desktop widths, keyboard focus, screen-reader labels, disabled controls, scrolling, modal dismissal, and navigation while saves are pending.
 

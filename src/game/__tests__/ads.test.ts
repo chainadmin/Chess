@@ -54,14 +54,15 @@ const finishGames = async (ads: AdMobAdService, count: number) => {
   return shown;
 };
 
-test('iOS waits for the foreground, asks consent and tracking, then shows a live ad every third game', async () => {
+test('iOS waits for the foreground, asks consent and tracking, then shows a live ad every second game', async () => {
   const { gma, log } = fakeGma();
   const p = platform();
   const ads = new AdMobAdService(gma, memory(), async () => NONE, p);
   await ads.initAds();
   assert.deepEqual(p.order, ['active', 'tracking']);
   assert.ok(log.includes('create live-unit np=true'), 'declined tracking still gets non-personalized live ads');
-  assert.deepEqual(await finishGames(ads, GAMES_BETWEEN_ADS * 2), [false, false, true, false, false, true]);
+  assert.equal(GAMES_BETWEEN_ADS, 2);
+  assert.deepEqual(await finishGames(ads, GAMES_BETWEEN_ADS * 2), [false, true, false, true]);
   assert.equal(log.filter(entry => entry === 'show').length, 2);
 });
 
@@ -72,7 +73,7 @@ test('a failed start at launch is retried instead of switching ads off for the s
   await ads.initAds();
   assert.ok(!log.includes('initialize'));
   online = true;
-  assert.deepEqual(await finishGames(ads, GAMES_BETWEEN_ADS), [false, false, true]);
+  assert.deepEqual(await finishGames(ads, GAMES_BETWEEN_ADS), [false, true]);
 });
 
 test('if the consent form errors, earlier consent still allows ads', async () => {
@@ -106,7 +107,7 @@ test('Remove Ads skips consent, tracking and every ad request', async () => {
   const p = platform();
   const ads = new AdMobAdService(gma, memory(), async (): Promise<Entitlements> => ({ adsRemoved: true, premiumPieceSets: [], source: 'verified' }), p);
   await ads.initAds();
-  assert.deepEqual(await finishGames(ads, GAMES_BETWEEN_ADS), [false, false, false]);
+  assert.deepEqual(await finishGames(ads, GAMES_BETWEEN_ADS), [false, false]);
   assert.deepEqual(p.order, []);
   assert.equal(log.length, 0);
 });
