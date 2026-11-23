@@ -62,7 +62,8 @@
             "cstr6suwn9.skadnetwork"
           ]
         }
-      ]
+      ],
+      "./plugins/withOptionalScreenFeatures"
     ],
     "extra": {
       "eas": {
